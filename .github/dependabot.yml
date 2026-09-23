@@ -23,3 +23,7 @@ updates:
     directories: [/apps/orders-api, /apps/inventory-svc, /apps/web-frontend]
     schedule: { interval: monthly }
     commit-message: { prefix: "fix(deps)" }
+    # Runtime majors (node 24 -> 25, python 3.12 -> 3.14) are planned upgrades, not bot PRs.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
