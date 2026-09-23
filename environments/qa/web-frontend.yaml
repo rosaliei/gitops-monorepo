@@ -5,7 +5,7 @@ environment: qa
 image:
   repository: ghcr.io/rosaliei/web-frontend
   tag: "0.1.0"
-  digest: ""
+  digest: "sha256:dbbc9f8ba25d3822f21b2f4620c25c0d20cafee8de62dcd8f3b8e290a522e3d3"
 
 replicaCount: 1
 
