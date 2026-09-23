@@ -1,4 +1,4 @@
-# Every target is a shortcut for commands shown step by step in README.md ("by hand").
+# Every target is a shortcut for commands shown step by step in docs/manual-steps.md.
 APPS    := orders-api inventory-svc web-frontend
 CLUSTER ?= gitops-demo
 ENV     ?= dev
