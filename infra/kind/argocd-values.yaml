@@ -1,0 +1,57 @@
+# ArgoCD install for the local kind cluster (scripts/bootstrap.sh).
+configs:
+  params:
+    server.insecure: true            # TLS is terminated by kubectl port-forward locally
+  cm:
+    timeout.reconciliation: 60s      # poll Git every minute (use a GitHub webhook in real life)
+
+# Expose metrics; the ServiceMonitors live in platform/manifests/monitoring/.
+controller:
+  metrics:
+    enabled: true
+server:
+  metrics:
+    enabled: true
+repoServer:
+  metrics:
+    enabled: true
+applicationSet:
+  metrics:
+    enabled: true
+
+dex:
+  enabled: false
+
+notifications:
+  enabled: true
+  metrics:
+    enabled: true
+  # Slack is optional: kubectl -n argocd patch secret argocd-notifications-secret \
+  #   -p '{"stringData":{"slack-token":"xoxb-..."}}'
+  notifiers:
+    service.slack: |
+      token: $slack-token
+  templates:
+    template.app-deployed: |
+      message: |
+        :rocket: *{{.app.metadata.name}}* deployed and healthy.
+        Images: {{range .app.status.summary.images}}`{{.}}` {{end}}
+        Git revision: {{.app.status.sync.revision}}
+    template.app-health-degraded: |
+      message: ":red_circle: *{{.app.metadata.name}}* is Degraded. Check ArgoCD and the runbooks in docs/runbooks/."
+    template.app-sync-failed: |
+      message: ":x: *{{.app.metadata.name}}* sync failed: {{.app.status.operationState.message}}"
+  triggers:
+    trigger.on-deployed: |
+      - description: New revision synced and healthy
+        oncePer: app.status.sync.revision
+        send: [app-deployed]
+        when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+    trigger.on-health-degraded: |
+      - description: Application became Degraded
+        send: [app-health-degraded]
+        when: app.status.health.status == 'Degraded'
+    trigger.on-sync-failed: |
+      - description: Sync failed
+        send: [app-sync-failed]
+        when: app.status.operationState != nil and app.status.operationState.phase in ['Error', 'Failed']

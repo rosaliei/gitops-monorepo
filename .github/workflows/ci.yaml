@@ -1,0 +1,219 @@
+# CI/CD for the monorepo.
+#
+#   pull request  ->  test  +  validate  +  e2e  +  build & scan      (nothing is published)
+#   merge to main ->  same checks, then push + sign images,
+#                     commit the new image to environments/dev   (ArgoCD deploys dev)
+#                     if a version was released, open a PR for environments/qa
+#
+# Only the apps that changed are tested and built (monorepo path filters).
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**"]
+  workflow_dispatch:   # re-run everything by hand (builds all apps)
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  changes:
+    name: detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      apps: ${{ steps.apps.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            orders-api: ["apps/orders-api/**"]
+            inventory-svc: ["apps/inventory-svc/**"]
+            web-frontend: ["apps/web-frontend/**"]
+      - name: apps to build
+        id: apps
+        run: |
+          # First push to a new repo or a manual run: build everything.
+          if [ "${{ github.event_name }}" = workflow_dispatch ] || [ "${{ github.event.before }}" = 0000000000000000000000000000000000000000 ]; then
+            apps='["orders-api","inventory-svc","web-frontend"]'
+          else
+            apps='${{ steps.filter.outputs.changes }}'
+          fi
+          echo "apps=$apps" >> "$GITHUB_OUTPUT"
+          echo "Apps to build: \`$apps\`" >> "$GITHUB_STEP_SUMMARY"
+
+  test:
+    needs: changes
+    if: needs.changes.outputs.apps != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.changes.outputs.apps) }}
+    name: test (${{ matrix.app }})
+    uses: ./.github/workflows/_test.yaml
+    with:
+      app: ${{ matrix.app }}
+
+  validate:
+    name: validate manifests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.17.0
+      - name: install kubeconform
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar xz -C "$HOME/bin" kubeconform
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+      - run: scripts/validate.sh
+      - name: upload rendered manifests (review what will be deployed)
+        uses: actions/upload-artifact@v7
+        with:
+          name: rendered-manifests
+          path: .out/rendered
+          retention-days: 7
+
+  e2e:
+    name: e2e (kind)
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.17.0
+      - uses: helm/kind-action@v1
+        with:
+          version: v0.31.0
+          install_only: true
+      - run: scripts/e2e.sh
+
+  build:
+    needs: [changes, test, e2e]
+    if: needs.changes.outputs.apps != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.changes.outputs.apps) }}
+    name: build (${{ matrix.app }})
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/_build.yaml
+    with:
+      app: ${{ matrix.app }}
+      push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+
+  deploy-dev:
+    name: deploy dev (+ qa PR on release)
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write        # commit to environments/dev
+      pull-requests: write   # open the qa promotion PR
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: image-*
+          path: .out/images
+          merge-multiple: true
+
+      - name: deploy to dev = commit to Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          msg=""
+          for f in .out/images/*.json; do
+            app=$(jq -r .app "$f"); tag=$(jq -r .tag "$f"); digest=$(jq -r .digest "$f")
+            scripts/set-image.sh dev "$app" "$tag" "$digest"
+            msg="$msg $app:$tag"
+          done
+          git add environments/dev
+          git commit -m "chore(dev): deploy$msg"
+          # Several pipelines may finish at once: rebase and retry instead of failing.
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            echo "push rejected, retry $i"; sleep $((i * 3))
+          done
+          exit 1
+
+      - name: prepare qa promotion for new releases
+        id: qa
+        run: |
+          apps=""
+          for f in .out/images/*.json; do
+            if [ "$(jq -r .new_release "$f")" = true ]; then
+              app=$(jq -r .app "$f"); version=$(jq -r .version "$f")
+              scripts/set-image.sh qa "$app" "$version" "$(jq -r .digest "$f")"
+              apps="$apps $app:$version"
+            fi
+          done
+          echo "apps=${apps# }" >> "$GITHUB_OUTPUT"
+
+      - name: open qa promotion PR
+        if: steps.qa.outputs.apps != ''
+        uses: peter-evans/create-pull-request@v8
+        with:
+          branch: promote/qa-${{ github.sha }}
+          commit-message: "chore(qa): promote ${{ steps.qa.outputs.apps }}"
+          title: "chore(qa): promote ${{ steps.qa.outputs.apps }}"
+          labels: promotion
+          body: |
+            New release built from ${{ github.sha }} and running in **dev**.
+            Merging this PR deploys the **same image digest** to **qa** (ArgoCD syncs within a minute).
+
+            - [ ] dev looks good (GitOps Delivery dashboard / smoke test)
+            - [ ] release notes checked (GitHub Releases)
+
+            Next step after qa: **Actions -> Promote to production**.
+
+  report:
+    name: pipeline report
+    needs: [changes, test, validate, e2e, build, deploy-dev]
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - name: summary
+        run: |
+          {
+            echo "## Pipeline result"
+            echo "| stage | result |"
+            echo "|---|---|"
+            echo "| apps | \`${{ needs.changes.outputs.apps }}\` |"
+            echo "| unit tests | ${{ needs.test.result }} |"
+            echo "| manifests | ${{ needs.validate.result }} |"
+            echo "| e2e (kind) | ${{ needs.e2e.result }} |"
+            echo "| build / scan / sign | ${{ needs.build.result }} |"
+            echo "| deploy dev | ${{ needs.deploy-dev.result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+      # Optional: add a repo secret SLACK_WEBHOOK_URL to get pipeline results in Slack.
+      - name: notify slack
+        if: github.event_name != 'pull_request' && env.SLACK_WEBHOOK_URL != ''
+        run: |
+          status="${{ contains(needs.*.result, 'failure') && ':x: failed' || ':white_check_mark: passed' }}"
+          text="CI/CD $status for \`${GITHUB_SHA::7}\` (${{ needs.changes.outputs.apps }}) - $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          curl -sf -X POST -H 'Content-Type: application/json' -d "$(jq -n --arg t "$text" '{text:$t}')" "$SLACK_WEBHOOK_URL" || echo "slack notify failed (ignored)"

@@ -1,0 +1,114 @@
+# Promote to production (or roll back) - manual, with approval.
+#
+#   Actions -> Promote to production -> Run workflow
+#     app:     which service
+#     version: empty   = promote exactly what qa runs now (same digest)
+#              x.y.z   = deploy that release (use an older one to roll back)
+#
+# Flow: plan (what changes) -> approval (GitHub Environment "production") -> PR -> merge = deploy.
+name: Promote to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: Service
+        type: choice
+        options: [orders-api, inventory-svc, web-frontend]
+      version:
+        description: "Version (empty = what qa runs now; older version = rollback)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: promote-${{ inputs.app }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      tag: ${{ steps.plan.outputs.tag }}
+      digest: ${{ steps.plan.outputs.digest }}
+      kind: ${{ steps.plan.outputs.kind }}
+      current: ${{ steps.plan.outputs.current }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: plan
+        id: plan
+        env:
+          APP: ${{ inputs.app }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          field() { grep -E "^  $1:" "environments/$2/$APP.yaml" | sed -E 's/.*"(.*)"/\1/'; }
+          current=$(field tag prod)
+          if [ -z "$VERSION" ]; then
+            tag=$(field tag qa); digest=$(field digest qa); source="qa"
+          else
+            tag="$VERSION"; source="registry"
+          fi
+          [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::'$tag' is not a release version (x.y.z)"; exit 1; }
+
+          # The image must exist. Take the digest from the registry if we do not have it yet.
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$APP"
+          registry_digest=$(docker buildx imagetools inspect "$image:$tag" --format '{{json .Manifest}}' | jq -r .digest) \
+            || { echo "::error::$image:$tag not found in the registry"; exit 1; }
+          digest="${digest:-$registry_digest}"
+          [ "$digest" = "$registry_digest" ] || { echo "::error::digest mismatch for $tag - the tag was overwritten?"; exit 1; }
+
+          if [ "$tag" = "$current" ]; then kind="no-op"
+          elif [ "$(printf '%s\n%s\n' "$tag" "$current" | sort -V | tail -1)" = "$current" ]; then kind="rollback"
+          else kind="promote"; fi
+
+          printf 'tag=%s\ndigest=%s\nkind=%s\ncurrent=%s\n' "$tag" "$digest" "$kind" "$current" >> "$GITHUB_OUTPUT"
+          {
+            echo "## $APP: prod $current -> $tag ($kind)"
+            echo "| | |"; echo "|---|---|"
+            echo "| source | $source |"; echo "| image | \`$image:$tag\` |"; echo "| digest | \`$digest\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  production:
+    needs: plan
+    if: needs.plan.outputs.kind != 'no-op'
+    runs-on: ubuntu-latest
+    # Required reviewers on this environment pause the run here until someone approves.
+    environment: production
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - run: scripts/set-image.sh prod "${{ inputs.app }}" "${{ needs.plan.outputs.tag }}" "${{ needs.plan.outputs.digest }}"
+      - uses: peter-evans/create-pull-request@v8
+        id: pr
+        with:
+          branch: promote/prod-${{ inputs.app }}
+          commit-message: "chore(prod): ${{ needs.plan.outputs.kind }} ${{ inputs.app }} ${{ needs.plan.outputs.current }} -> ${{ needs.plan.outputs.tag }}"
+          title: "chore(prod): ${{ needs.plan.outputs.kind }} ${{ inputs.app }} ${{ needs.plan.outputs.current }} -> ${{ needs.plan.outputs.tag }}"
+          labels: promotion,production
+          body: |
+            Approved by @${{ github.actor }} in workflow run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}.
+
+            | | |
+            |---|---|
+            | service | `${{ inputs.app }}` |
+            | prod now | `${{ needs.plan.outputs.current }}` |
+            | prod after merge | `${{ needs.plan.outputs.tag }}` |
+            | digest | `${{ needs.plan.outputs.digest }}` |
+
+            Merge = deploy. ArgoCD syncs prod within a minute. Roll back by running this workflow again with the previous version.
+      - run: echo "Promotion PR ${{ steps.pr.outputs.pull-request-url }}" >> "$GITHUB_STEP_SUMMARY"

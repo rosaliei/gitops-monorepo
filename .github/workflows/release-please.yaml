@@ -1,0 +1,30 @@
+# Versioning from commit messages (Conventional Commits), per app:
+#   fix: ...   -> patch  0.1.0 -> 0.1.1
+#   feat: ...  -> minor  0.1.0 -> 0.2.0
+#   feat!: ... -> major  (after 1.0.0)
+# release-please keeps one "release PR" per app open, with the next version + CHANGELOG.
+# Merging it bumps apps/<app>/version.txt and tags <app>-v<version>. The CI/CD pipeline then
+# sees a version that is not in the registry yet, publishes it and opens the qa promotion PR.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      - name: summary
+        run: |
+          echo "## Releases" >> "$GITHUB_STEP_SUMMARY"
+          echo "Released paths: \`${{ steps.release.outputs.paths_released || '[]' }}\`" >> "$GITHUB_STEP_SUMMARY"

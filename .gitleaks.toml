@@ -1,0 +1,9 @@
+# Default gitleaks rules + an allowlist for the clearly-fake demo values.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local demo values that are not real secrets"
+paths = [
+  '''platform/manifests/secrets/cluster-secret-store\.yaml''',
+]

@@ -1,0 +1,21 @@
+# qa: CI opens a PR here when a new version is released (merge = deploy).
+# Chart defaults: charts/app/values.yaml
+environment: qa
+
+image:
+  repository: ghcr.io/rosaliei/web-frontend
+  tag: "0.1.0"
+  digest: ""
+
+replicaCount: 1
+
+probes:
+  readiness: /healthz
+
+env:
+  ORDERS_API_HOST: orders-api.demo-qa.svc.cluster.local
+  INVENTORY_HOST: inventory-svc.demo-qa.svc.cluster.local
+
+writableDirs:
+  - /tmp
+  - /etc/nginx/conf.d

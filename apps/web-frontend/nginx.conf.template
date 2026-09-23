@@ -1,0 +1,37 @@
+# Rendered at container start by the nginx image (envsubst on /etc/nginx/templates/*.template).
+# The resolver + variables let nginx start even if a backend Service does not exist yet.
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+
+server {
+    listen 8080;
+    root /usr/share/nginx/html;
+
+    location = /healthz {
+        access_log off;
+        default_type application/json;
+        return 200 '{"status":"ok"}';
+    }
+
+    location = /env.json {
+        default_type application/json;
+        return 200 '{"environment":"${APP_ENV}"}';
+    }
+
+    # /api/orders/info  ->  http://orders-api/api/info
+    location /api/orders/ {
+        set $orders_upstream http://${ORDERS_API_HOST};
+        rewrite ^/api/orders/(.*)$ /api/$1 break;
+        proxy_pass $orders_upstream;
+    }
+
+    # /api/inventory/items  ->  http://inventory-svc/api/items
+    location /api/inventory/ {
+        set $inventory_upstream http://${INVENTORY_HOST};
+        rewrite ^/api/inventory/(.*)$ /api/$1 break;
+        proxy_pass $inventory_upstream;
+    }
+
+    location / {
+        try_files $uri /index.html;
+    }
+}

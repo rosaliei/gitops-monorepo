@@ -1,0 +1,31 @@
+# prod: only the 'promote' workflow changes this, after approval (merge = deploy).
+# Chart defaults: charts/app/values.yaml
+environment: prod
+
+image:
+  repository: ghcr.io/rosaliei/orders-api
+  tag: "0.1.0"
+  digest: ""
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+
+env:
+  LOG_LEVEL: info
+
+secretEnv:
+  enabled: true
+  data:
+    API_KEY: prod/orders-api/api-key
+
+metrics:
+  enabled: true
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 96Mi
+  limits:
+    memory: 192Mi

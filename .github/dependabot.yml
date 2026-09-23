@@ -1,0 +1,25 @@
+# Keep dependencies and base images patched.
+#   app dependencies / base images -> "fix(deps)": ships a patch release of that app
+#   GitHub Actions                 -> "chore(deps)": CI only, no release
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+    commit-message: { prefix: "chore(deps)" }
+    groups:
+      actions: { patterns: ["*"] }
+  - package-ecosystem: pip
+    directory: /apps/orders-api
+    schedule: { interval: monthly }
+    commit-message: { prefix: "fix(deps)" }
+    groups:
+      python: { patterns: ["*"] }
+  - package-ecosystem: npm
+    directory: /apps/inventory-svc
+    schedule: { interval: monthly }
+    commit-message: { prefix: "fix(deps)" }
+  - package-ecosystem: docker
+    directories: [/apps/orders-api, /apps/inventory-svc, /apps/web-frontend]
+    schedule: { interval: monthly }
+    commit-message: { prefix: "fix(deps)" }

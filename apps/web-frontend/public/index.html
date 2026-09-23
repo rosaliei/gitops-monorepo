@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GitOps Demo Shop</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #1d2433; background: #f5f7fb; }
+    main { max-width: 760px; margin: 40px auto; padding: 0 16px; }
+    .card { background: #fff; border-radius: 10px; padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px 4px; border-bottom: 1px solid #e6e9f0; }
+    .badge { padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+    .healthy, .up { background: #dff5e3; color: #17692a; }
+    .degraded, .down { background: #fde2e1; color: #9b1c1c; }
+    .unknown { background: #eceff4; color: #4a5263; }
+    code { background: #eef1f6; padding: 1px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>GitOps Demo Shop</h1>
+    <p>Environment: <code id="env">…</code> · Frontend version: <code id="fe-version">…</code>
+      · Status: <span id="overall" class="badge unknown">checking</span></p>
+    <p>Every value on this page comes from what ArgoCD deployed from Git. Promote a new version and refresh.</p>
+  </div>
+  <div class="card">
+    <h2>Services</h2>
+    <table>
+      <thead><tr><th>Service</th><th>Version</th><th>Commit</th><th>Status</th></tr></thead>
+      <tbody id="services"></tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2>Inventory</h2>
+    <table>
+      <thead><tr><th>SKU</th><th>Name</th><th>Qty</th></tr></thead>
+      <tbody id="items"></tbody>
+    </table>
+  </div>
+</main>
+<script src="status.js"></script>
+<script>
+  const getJson = (url) => fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
+  const cell = (text, cls) => `<td>${cls ? `<span class="badge ${cls}">${text}</span>` : text}</td>`;
+
+  async function load() {
+    getJson('env.json').then((e) => { document.getElementById('env').textContent = e.environment; }).catch(() => {});
+    getJson('version.json').then((v) => { document.getElementById('fe-version').textContent = v.version; }).catch(() => {});
+
+    const services = [['orders-api', '/api/orders/info'], ['inventory-svc', '/api/inventory/info']];
+    const results = await Promise.all(services.map(([name, url]) =>
+      getJson(url).then((info) => ({ name, info })).catch((error) => ({ name, error }))));
+    const rows = toRows(results);
+    document.getElementById('services').innerHTML = rows
+      .map((r) => `<tr>${cell(r.name)}${cell(r.version)}${cell(r.commit)}${cell(r.status, r.status)}</tr>`).join('');
+    const overall = overallStatus(rows);
+    const badge = document.getElementById('overall');
+    badge.textContent = overall;
+    badge.className = `badge ${overall}`;
+
+    getJson('/api/inventory/items').then((items) => {
+      document.getElementById('items').innerHTML = items
+        .map((i) => `<tr>${cell(i.sku)}${cell(i.name)}${cell(i.quantity)}</tr>`).join('');
+    }).catch(() => {});
+  }
+  load();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# dev: CI commits a new build here on every merge to main (automatic).
+# Chart defaults: charts/app/values.yaml
+environment: dev
+
+image:
+  repository: ghcr.io/rosaliei/inventory-svc
+  tag: "0.1.0"
+  digest: ""
+
+replicaCount: 1
+
+metrics:
+  enabled: true

@@ -1,0 +1,41 @@
+# AppProjects are the guard rails: which repos, which namespaces, which kinds.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Cluster add-ons (monitoring, secrets, policies). Owned by the platform team.
+  sourceRepos: ["*"]
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "*"
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: demo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Product services. Least privilege - only this repo, only demo-* namespaces, only these kinds.
+  sourceRepos:
+    - https://github.com/rosaliei/gitops-monorepo.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: demo-*
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - { group: "", kind: Service }
+    - { group: apps, kind: Deployment }
+    - { group: autoscaling, kind: HorizontalPodAutoscaler }
+    - { group: monitoring.coreos.com, kind: ServiceMonitor }
+    - { group: external-secrets.io, kind: ExternalSecret }

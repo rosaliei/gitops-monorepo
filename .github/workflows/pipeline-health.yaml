@@ -1,0 +1,24 @@
+# Monitoring the delivery pipeline itself (DORA-style metrics), straight from Git + GitHub:
+#   deployment frequency per environment, lead time (release -> prod), change failure rate,
+#   CI success rate and duration. Results go to the run summary.
+name: Pipeline health
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0     # full history + tags
+      - run: python3 scripts/pipeline_health.py >> "$GITHUB_STEP_SUMMARY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

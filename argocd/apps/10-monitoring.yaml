@@ -1,0 +1,32 @@
+# kube-prometheus-stack: Prometheus, Alertmanager, Grafana.
+# Two sources: the public chart + our values file from this repo ($values).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: platform
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 91.5.0
+      helm:
+        releaseName: monitoring
+        valueFiles:
+          - $values/platform/values/kube-prometheus-stack.yaml
+    - repoURL: https://github.com/rosaliei/gitops-monorepo.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true   # the CRDs are too big for client-side apply

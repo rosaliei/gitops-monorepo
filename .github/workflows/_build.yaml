@@ -1,0 +1,152 @@
+# Reusable: build -> scan -> (on main) push, sign, record the digest.
+#
+# Tags (immutable - a tag is never pushed twice):
+#   sha-<commit>   every build on main              -> deployed to dev
+#   <x.y.z>        only when apps/<app>/version.txt holds a version that is not in the registry
+#                  yet (release-please just bumped it) -> promoted to qa, then prod
+# The release tag points at the SAME image as the sha tag: build once, promote everywhere.
+name: _build
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        required: true
+        type: string
+      push:
+        description: push, sign and record the image (main only)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  TRIVY_IMAGE: aquasec/trivy:0.74.0
+
+defaults:
+  run:
+    shell: bash   # bash -eo pipefail: a failing command in a pipe fails the step
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write     # push to ghcr.io
+      id-token: write     # keyless cosign signing (OIDC)
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: image names
+        id: meta
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          {
+            echo "image=ghcr.io/$owner/${{ inputs.app }}"
+            echo "sha_tag=sha-${GITHUB_SHA::7}"
+            echo "version=$(tr -d '[:space:]' < apps/${{ inputs.app }}/version.txt)"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      # 1) Build for amd64 and load it locally so we can scan before anything is published.
+      - name: build (for scanning)
+        uses: docker/build-push-action@v7
+        with:
+          context: apps/${{ inputs.app }}
+          platforms: linux/amd64
+          load: true
+          tags: local/${{ inputs.app }}:scan
+          cache-from: type=gha,scope=${{ inputs.app }}
+          cache-to: type=gha,scope=${{ inputs.app }},mode=max
+
+      # 2) Gate: fail on CRITICAL vulnerabilities that have a fix available. HIGH is reported only.
+      - name: scan (trivy)
+        run: |
+          scan() { docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                     -v "$HOME/.cache/trivy:/root/.cache/trivy" "$TRIVY_IMAGE" image \
+                     --quiet --ignore-unfixed --severity "$1" --exit-code "$2" local/${{ inputs.app }}:scan; }
+          touch trivy.txt
+          report() { { echo "### ${{ inputs.app }} - image scan"; echo '```'; tail -n 30 trivy.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"; }
+          trap report EXIT
+          scan HIGH 0 | tee -a trivy.txt
+          scan CRITICAL 1 | tee -a trivy.txt
+
+      # ---------------- main branch only ----------------
+      - if: inputs.push
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - if: inputs.push
+        name: is this a new release?
+        id: release
+        run: |
+          image="${{ steps.meta.outputs.image }}"; sha_tag="${{ steps.meta.outputs.sha_tag }}"; version="${{ steps.meta.outputs.version }}"
+          if docker buildx imagetools inspect "$image:$version" >/dev/null 2>&1; then
+            printf 'new=false\ntags=%s\napp_version=%s\n' "$image:$sha_tag" "$sha_tag" >> "$GITHUB_OUTPUT"
+          else
+            printf 'new=true\ntags=%s\napp_version=%s\n' "$image:$sha_tag,$image:$version" "$version" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: inputs.push
+        uses: docker/setup-qemu-action@v4
+
+      # 3) Multi-arch (amd64 for cloud, arm64 for Apple-silicon laptops) + SBOM + provenance.
+      - if: inputs.push
+        name: build + push
+        id: push
+        uses: docker/build-push-action@v7
+        with:
+          context: apps/${{ inputs.app }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.release.outputs.tags }}
+          build-args: |
+            APP_VERSION=${{ steps.release.outputs.app_version }}
+            GIT_SHA=${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=${{ inputs.app }}
+          cache-to: type=gha,scope=${{ inputs.app }},mode=max
+
+      # 4) Sign the digest (keyless, Sigstore). Verify with:
+      #    cosign verify ghcr.io/<owner>/<app>@<digest> \
+      #      --certificate-identity-regexp 'https://github.com/<owner>/gitops-monorepo/.*' \
+      #      --certificate-oidc-issuer https://token.actions.githubusercontent.com
+      - if: inputs.push
+        uses: sigstore/cosign-installer@v4.1.2
+      - if: inputs.push
+        name: sign
+        run: cosign sign --yes "${{ steps.meta.outputs.image }}@${{ steps.push.outputs.digest }}"
+
+      # 5) Hand the result to the deploy job (a tiny JSON file per app).
+      - if: inputs.push
+        name: record
+        run: |
+          mkdir -p .out
+          jq -n --arg app "${{ inputs.app }}" --arg image "${{ steps.meta.outputs.image }}" \
+                --arg tag "${{ steps.meta.outputs.sha_tag }}" --arg digest "${{ steps.push.outputs.digest }}" \
+                --arg version "${{ steps.meta.outputs.version }}" --argjson new_release "${{ steps.release.outputs.new }}" \
+                '{app:$app, image:$image, tag:$tag, digest:$digest, version:$version, new_release:$new_release}' \
+                > ".out/${{ inputs.app }}.json"
+          cat ".out/${{ inputs.app }}.json"
+          {
+            echo "| app | tag | release | digest |"
+            echo "|---|---|---|---|"
+            echo "| ${{ inputs.app }} | \`${{ steps.meta.outputs.sha_tag }}\` | ${{ steps.release.outputs.new == 'true' && steps.meta.outputs.version || '-' }} | \`${{ steps.push.outputs.digest }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - if: inputs.push
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-${{ inputs.app }}
+          path: .out/${{ inputs.app }}.json
+          retention-days: 7

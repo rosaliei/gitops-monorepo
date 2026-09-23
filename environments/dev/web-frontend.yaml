@@ -1,0 +1,21 @@
+# dev: CI commits a new build here on every merge to main (automatic).
+# Chart defaults: charts/app/values.yaml
+environment: dev
+
+image:
+  repository: ghcr.io/rosaliei/web-frontend
+  tag: "0.1.0"
+  digest: ""
+
+replicaCount: 1
+
+probes:
+  readiness: /healthz
+
+env:
+  ORDERS_API_HOST: orders-api.demo-dev.svc.cluster.local
+  INVENTORY_HOST: inventory-svc.demo-dev.svc.cluster.local
+
+writableDirs:
+  - /tmp
+  - /etc/nginx/conf.d

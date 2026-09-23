@@ -1,0 +1,16 @@
+# Used by CI to render every optional template at least once.
+environment: ci
+image:
+  repository: ghcr.io/example/orders-api
+  tag: 1.0.0
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+env:
+  LOG_LEVEL: debug
+secretEnv:
+  enabled: true
+  data:
+    API_KEY: orders-api/api-key
+autoscaling:
+  enabled: true
+metrics:
+  enabled: true

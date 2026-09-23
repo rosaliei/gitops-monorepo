@@ -1,0 +1,49 @@
+# Git is the only way to change a GitOps namespace.
+#
+# Why: ArgoCD self-heal only reverts fields ArgoCD owns. With server-side apply, a field added
+# by hand (kubectl edit, Rancher UI) is owned by someone else, so ArgoCD ignores it and the
+# drift stays. Rejecting the change at admission time means drift never happens.
+#
+# Allowed: the ArgoCD application controller and Kubernetes' own controllers (kube-system).
+# Blocked: everyone else, including cluster-admin, for UPDATE and DELETE.
+# Break-glass: remove the gitops.demo/protected label from the namespace (and audit it).
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: block-manual-changes
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["UPDATE", "DELETE"]
+        resources: ["deployments"]
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["UPDATE", "DELETE"]
+        resources: ["services", "configmaps"]
+      - apiGroups: ["autoscaling"]
+        apiVersions: ["v2"]
+        operations: ["UPDATE", "DELETE"]
+        resources: ["horizontalpodautoscalers"]
+  validations:
+    - expression: >-
+        request.userInfo.username == 'system:serviceaccount:argocd:argocd-application-controller' ||
+        request.userInfo.username.startsWith('system:serviceaccount:kube-system:') ||
+        request.userInfo.username.startsWith('system:kube-')
+      messageExpression: >-
+        'Manual changes are blocked in GitOps namespaces (you are ' + request.userInfo.username +
+        '). Change the files in Git instead - ArgoCD will apply them.'
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: block-manual-changes
+spec:
+  policyName: block-manual-changes
+  validationActions: ["Deny"]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        gitops.demo/protected: "true"

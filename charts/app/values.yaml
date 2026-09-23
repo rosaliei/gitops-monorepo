@@ -1,0 +1,53 @@
+# Defaults for every service. Each environment file only overrides what differs:
+#   environments/<env>/<app>.yaml
+
+# Shown to the app as APP_ENV.
+environment: local
+
+image:
+  repository: ""            # e.g. ghcr.io/rosaliei/orders-api
+  tag: ""                   # a release (1.2.0) or a CI build (sha-abc1234). Never "latest".
+  digest: ""                # optional sha256:... pins the exact image CI tested and signed
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+containerPort: 8080
+
+# Plain, non-secret configuration.
+env: {}
+
+# Secrets are never stored in Git. External Secrets Operator copies them from a secret
+# store (AWS Secrets Manager, Vault, ...) into a Kubernetes Secret.  ENV_NAME: remote-key
+secretEnv:
+  enabled: false
+  store: demo-store         # a ClusterSecretStore
+  data: {}
+
+probes:
+  liveness: /healthz
+  readiness: /readyz
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+# The root filesystem is read-only; list any folders the app must write to.
+writableDirs:
+  - /tmp
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPU: 70
+
+# ServiceMonitor for Prometheus Operator (the app must expose /metrics).
+metrics:
+  enabled: false
+  path: /metrics
+
+service:
+  port: 80

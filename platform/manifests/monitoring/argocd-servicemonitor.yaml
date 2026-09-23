@@ -1,0 +1,15 @@
+# Scrape ArgoCD so we can see delivery health: argocd_app_info (sync/health per app)
+# and argocd_app_sync_total (how often we deploy).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-application-controller
+  namespace: argocd
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-metrics
+      app.kubernetes.io/component: application-controller
+  endpoints:
+    - port: http-metrics
+      interval: 30s

@@ -1,0 +1,13 @@
+# qa: CI opens a PR here when a new version is released (merge = deploy).
+# Chart defaults: charts/app/values.yaml
+environment: qa
+
+image:
+  repository: ghcr.io/rosaliei/inventory-svc
+  tag: "0.1.0"
+  digest: ""
+
+replicaCount: 1
+
+metrics:
+  enabled: true

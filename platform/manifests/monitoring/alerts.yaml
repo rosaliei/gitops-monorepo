@@ -1,0 +1,69 @@
+# Alerts for the product services and for delivery itself.
+# Every alert links to a runbook: what it means, how to check, how to fix.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gitops-demo-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: slo.availability
+      # SLO: 99% of requests succeed (non-5xx) over 30 days -> error budget = 1%.
+      # Multi-window burn rate: page when we burn budget 14.4x too fast (2% of the 30-day budget
+      # in 1 hour), confirmed by the last 5 minutes so the alert clears quickly after a fix.
+      rules:
+        - record: job:http_error_ratio:rate5m
+          expr: |
+            sum by (namespace, job) (rate(http_requests_total{status=~"5.."}[5m]))
+              / sum by (namespace, job) (rate(http_requests_total[5m]))
+        - record: job:http_error_ratio:rate1h
+          expr: |
+            sum by (namespace, job) (rate(http_requests_total{status=~"5.."}[1h]))
+              / sum by (namespace, job) (rate(http_requests_total[1h]))
+        - alert: ErrorBudgetBurnFast
+          expr: job:http_error_ratio:rate1h > (14.4 * 0.01) and job:http_error_ratio:rate5m > (14.4 * 0.01)
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.job }} in {{ $labels.namespace }} is burning its error budget fast"
+            description: "Error ratio is {{ $value | humanizePercentage }} (SLO allows 1%)."
+            runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/error-budget-burn.md
+    - name: slo.latency
+      rules:
+        - alert: HighLatencyP95
+          expr: |
+            histogram_quantile(0.95, sum by (le, namespace, job) (rate(http_request_duration_seconds_bucket[5m]))) > 0.5
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.job }} p95 latency above 500ms in {{ $labels.namespace }}"
+            runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/high-latency.md
+    - name: workloads
+      rules:
+        - alert: PodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total{namespace=~"demo-.*"}[15m]) > 3
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.pod }} in {{ $labels.namespace }} restarted more than 3 times in 15m"
+            runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/pod-crashlooping.md
+    - name: gitops
+      rules:
+        - alert: ArgoAppDegraded
+          expr: argocd_app_info{health_status="Degraded"} == 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "ArgoCD app {{ $labels.name }} is Degraded"
+            runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/argocd-app-degraded.md
+        - alert: ArgoAppOutOfSync
+          expr: argocd_app_info{sync_status="OutOfSync"} == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ArgoCD app {{ $labels.name }} has been OutOfSync for 15m"
+            runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/argocd-app-outofsync.md

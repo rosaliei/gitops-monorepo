@@ -1,0 +1,59 @@
+# One ApplicationSet -> one Application per file in environments/<env>/<app>.yaml
+#   environments/dev/orders-api.yaml  ->  Application "orders-api-dev" in namespace "demo-dev"
+# Adding a service or an environment = adding a file. No new ArgoCD YAML.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: demo-apps
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/rosaliei/gitops-monorepo.git
+        revision: main
+        files:
+          - path: "environments/*/*.yaml"
+  template:
+    metadata:
+      name: '{{ trimSuffix ".yaml" .path.filename }}-{{ .path.basename }}'
+      labels:
+        app: '{{ trimSuffix ".yaml" .path.filename }}'
+        env: '{{ .path.basename }}'
+      annotations:
+        # ArgoCD Notifications -> Slack (only sends if a Slack token is configured).
+        notifications.argoproj.io/subscribe.on-deployed.slack: gitops-demo
+        notifications.argoproj.io/subscribe.on-health-degraded.slack: gitops-demo
+        notifications.argoproj.io/subscribe.on-sync-failed.slack: gitops-demo
+    spec:
+      project: demo
+      source:
+        repoURL: https://github.com/rosaliei/gitops-monorepo.git
+        targetRevision: main
+        path: charts/app
+        helm:
+          releaseName: '{{ trimSuffix ".yaml" .path.filename }}'
+          valueFiles:
+            - '../../{{ .path.path }}/{{ .path.filename }}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'demo-{{ .path.basename }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true      # undo manual changes (the admission policy blocks most of them anyway)
+        syncOptions:
+          - CreateNamespace=true
+          - SkipDryRunOnMissingResource=true
+        managedNamespaceMetadata:
+          labels:
+            gitops.demo/protected: "true"   # turns on platform/manifests/policies/block-manual-changes.yaml
+        retry:
+          limit: 5
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m

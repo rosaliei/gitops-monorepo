@@ -1,0 +1,21 @@
+# qa: CI opens a PR here when a new version is released (merge = deploy).
+# Chart defaults: charts/app/values.yaml
+environment: qa
+
+image:
+  repository: ghcr.io/rosaliei/orders-api
+  tag: "0.1.0"
+  digest: ""
+
+replicaCount: 1
+
+env:
+  LOG_LEVEL: debug
+
+secretEnv:
+  enabled: true
+  data:
+    API_KEY: qa/orders-api/api-key
+
+metrics:
+  enabled: true

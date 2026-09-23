@@ -1,0 +1,5 @@
+{{ .Release.Name }} {{ .Values.image.tag }} is deployed to namespace {{ .Release.Namespace }} ({{ .Values.environment }}).
+
+Try it:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ .Release.Name }} 8080:{{ .Values.service.port }}
+  curl localhost:8080{{ .Values.probes.readiness }}

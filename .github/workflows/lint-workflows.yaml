@@ -1,0 +1,22 @@
+# CI for the CI: catch broken workflow YAML, bad expressions and shell bugs before they run.
+name: Lint workflows
+
+on:
+  pull_request:
+    paths: [".github/**", "scripts/**"]
+  push:
+    branches: [main]
+    paths: [".github/**", "scripts/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: actionlint (+ shellcheck on every run block)
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
+      - name: shellcheck scripts
+        run: docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:v0.10.0 scripts/*.sh

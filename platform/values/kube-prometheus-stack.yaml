@@ -1,0 +1,37 @@
+# Sized for a laptop (kind). Components that cannot be scraped on kind are turned off.
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+nodeExporter:
+  enabled: false        # needs host mounts that Docker Desktop does not provide
+
+prometheus:
+  prometheusSpec:
+    # Pick up ServiceMonitors / rules from every namespace, not just this Helm release.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    retention: 2d
+    resources:
+      requests:
+        cpu: 100m
+        memory: 400Mi
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+
+grafana:
+  adminPassword: admin   # demo only. Real clusters: grafana.admin.existingSecret + ExternalSecret
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: ALL

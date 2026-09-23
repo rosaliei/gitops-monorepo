@@ -1,0 +1,56 @@
+# Reusable: lint + unit test one app. The language is detected from the files in apps/<app>.
+# (In a real company this lives in a central "ci-workflows" repo and every service calls it:
+#   uses: my-org/ci-workflows/.github/workflows/test.yaml@v1)
+name: _test
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/${{ inputs.app }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # ---- Python ----
+      - if: hashFiles(format('apps/{0}/requirements.txt', inputs.app)) != ''
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/${{ inputs.app }}/requirements*.txt
+      - if: hashFiles(format('apps/{0}/requirements.txt', inputs.app)) != ''
+        name: lint + test (python)
+        run: |
+          pip install -r requirements-dev.txt
+          ruff check .
+          pytest -v --junitxml=test-results.xml
+
+      # ---- Node.js ----
+      - if: hashFiles(format('apps/{0}/package.json', inputs.app)) != ''
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - if: hashFiles(format('apps/{0}/package.json', inputs.app)) != ''
+        name: lint + test (node)
+        run: |
+          if [ -f package-lock.json ]; then npm ci; fi
+          npm run lint
+          npm test
+
+      - name: summary
+        if: always()
+        run: echo "| ${{ inputs.app }} | unit tests | ${{ job.status }} |" >> "$GITHUB_STEP_SUMMARY"
