@@ -1,6 +1,6 @@
 {
   "name": "inventory-svc",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Tiny stock service used to demo CI/CD and GitOps",
   "main": "src/server.js",
