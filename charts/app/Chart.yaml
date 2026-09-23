@@ -2,4 +2,4 @@ apiVersion: v2
 name: app
 description: One simple chart shared by every service in this repo (Deployment + Service, optional HPA, ServiceMonitor, ExternalSecret).
 type: application
-version: 1.0.0
+version: 1.0.1

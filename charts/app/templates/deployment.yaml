@@ -51,7 +51,8 @@ spec:
                 secretKeyRef:
                   name: {{ $.Release.Name }}-secrets
                   key: {{ $name }}
-                  optional: true    # the pod still starts if the secret store is slow
+                  # Required: the pod waits (CreateContainerConfigError, retried by the kubelet)
+                  # until External Secrets has created the Secret, instead of running without it.
             {{- end }}
             {{- end }}
           livenessProbe:
