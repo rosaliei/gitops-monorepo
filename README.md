@@ -125,8 +125,8 @@ kind load docker-image local/orders-api:0.1.0 --name gitops-demo
 # install it with the shared chart + the dev values
 helm install orders-api charts/app -n hands-on --create-namespace \
   -f environments/dev/orders-api.yaml \
-  --set image.repository=local/orders-api --set image.tag=0.1.0 --set image.pullPolicy=Never \
-  --set secretEnv.enabled=false --set metrics.enabled=false
+  --set image.repository=local/orders-api --set image.tag=0.1.0 --set image.digest= \
+  --set image.pullPolicy=Never --set secretEnv.enabled=false --set metrics.enabled=false
 
 kubectl -n hands-on get pods
 kubectl -n hands-on port-forward svc/orders-api 8080:80 &
@@ -138,7 +138,7 @@ curl localhost:8080/api/info
 
 ```bash
 make up          # kind + ArgoCD + root app → ArgoCD installs everything else from Git
-make status      # watch 3 platform apps + 9 service apps (3 services × 3 envs) become Synced/Healthy
+make status      # watch 4 platform apps + 9 service apps (3 services × 3 envs) become Synced/Healthy
 make ui-argocd   # http://localhost:8080  (password is printed by make up)
 make ui-grafana  # http://localhost:3000  admin/admin → dashboards "GitOps Delivery", "Services (RED)"
 make ui-shop ENV=prod   # http://localhost:8081 - the page shows what version runs in prod

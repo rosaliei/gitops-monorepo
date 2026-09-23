@@ -11,6 +11,9 @@ ARG GIT_SHA=local
 ENV NODE_ENV=production \
     APP_VERSION=$APP_VERSION \
     GIT_SHA=$GIT_SHA
+# Patch OS packages and drop npm: the runtime only needs node. Smaller image, fewer CVEs.
+RUN apk upgrade --no-cache \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /opt/yarn* /usr/local/bin/yarn*
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY package.json ./
