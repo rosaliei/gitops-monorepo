@@ -1,12 +1,12 @@
 # ---- build stage: install dependencies into a virtualenv ----
-FROM python:3.12-slim AS build
+FROM python:3.14-slim AS build
 WORKDIR /app
 RUN python -m venv /venv
 COPY requirements.txt .
 RUN /venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # ---- runtime stage: small image, non-root user ----
-FROM python:3.12-slim
+FROM python:3.14-slim
 ARG APP_VERSION=dev
 ARG GIT_SHA=local
 ENV PATH="/venv/bin:$PATH" \
