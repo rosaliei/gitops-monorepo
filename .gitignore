@@ -1,7 +1,4 @@
-# --- Private reference material: never commit (contains real credentials) ---
-gitops-repo-structure/
-github-action-test/
-gitops-drawinglink.md
+# --- Local tool config: never commit (.mcp.json holds an API key) ---
 .mcp.json
 .claude/
 
