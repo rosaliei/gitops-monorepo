@@ -1,6 +1,7 @@
 # --- Local tool config: never commit (.mcp.json holds an API key) ---
 .mcp.json
 .claude/
+.kiro/
 
 # --- OS / editor ---
 .DS_Store
