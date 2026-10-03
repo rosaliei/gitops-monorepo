@@ -3,6 +3,8 @@
 Every step the pipelines automate, done by hand, in order. Follow it once and you will know
 exactly what the automation in [automation-steps.md](automation-steps.md) does for you.
 
+Prefer pictures? The same 16 steps with terminal and UI screens: [diagrams/3-manual-steps.svg](diagrams/3-manual-steps.svg)
+
 **Needs:** Docker, [kind](https://kind.sigs.k8s.io/), kubectl, Helm 3, Node 24. About 20 minutes.
 
 | # | Step | Automated by |
