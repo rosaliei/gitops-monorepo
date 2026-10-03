@@ -4,8 +4,8 @@ environment: qa
 
 image:
   repository: ghcr.io/rosaliei/inventory-svc
-  tag: "0.1.0"
-  digest: "sha256:a3dd776320d34a522d0c6fd117dda19f3e59af0f5c54e152a717dda2e97cb8d6"
+  tag: "0.2.0"
+  digest: "sha256:9552d9f6c8d8c23b17267d877e40a3ccb9aee621c7efcd53ab8fb9670adcb7d9"
 
 replicaCount: 1
 
