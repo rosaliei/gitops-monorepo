@@ -33,6 +33,10 @@ Real ArgoCD UI on the local cluster after `make up`: 14 applications (root + 4 p
 
 ![ArgoCD applications](docs/screenshots/argocd-applications.png)
 
+The app-of-apps in the UI: `root` creates the platform apps, the two AppProjects and the `demo-apps` ApplicationSet, which fans out to the 9 service apps (compare with the [architecture diagram](docs/diagrams/4-architecture.svg)).
+
+![ArgoCD root app tree](docs/screenshots/argocd-root-tree.jpg)
+
 ## How it works: 8 steps
 
 ![Walkthrough](docs/diagrams/2-walkthrough.svg)
