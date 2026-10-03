@@ -44,6 +44,7 @@ The app-of-apps in the UI: `root` creates the platform apps, the two AppProjects
 | | Step by step |
 |---|---|
 | 🖐 **Do it by hand** | [docs/manual-steps.md](docs/manual-steps.md): 16 numbered steps, from `kind create cluster` to promoting to prod, also as a [visual guide with terminal and UI screens](docs/diagrams/3-manual-steps.svg) |
+| 📸 **See a real run** | [docs/real-run.md](docs/real-run.md): the same 16 steps performed for real, with 46 screenshots of every command and every click (release 0.2.0 shipped dev → qa → prod) |
 | ⚙️ **Watch the automation** | [docs/automation-steps.md](docs/automation-steps.md): 12 numbered steps, what each pipeline does and where to see it |
 
 ## Try it in one command
