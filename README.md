@@ -10,6 +10,8 @@ running `kubectl` against the cluster. **GitHub Actions** builds, tests, scans a
 records what runs where, and **ArgoCD** makes the cluster match Git. It runs on a laptop with one
 command, and on AWS EKS with Terraform.
 
+> **New here? → [Start here](docs/start-here.md)**: the whole project in 1 picture, 3 rules, 6 files, and 7 hands-on exercises.
+
 ![Overview](docs/diagrams/1-overview.svg)
 
 ---
