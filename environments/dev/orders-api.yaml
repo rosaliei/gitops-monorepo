@@ -4,8 +4,8 @@ environment: dev
 
 image:
   repository: ghcr.io/rosaliei/orders-api
-  tag: "0.1.0"
-  digest: ""
+  tag: "sha-267250c"
+  digest: "sha256:f9d76136f75a2fe5ffe40ce80f47a5b71552b95b8d5a51b58abca25e323a439f"
 
 replicaCount: 1
 
