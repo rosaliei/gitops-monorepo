@@ -92,7 +92,7 @@ data:
         },
         {
           "id": 3,
-          "title": "Latency p95",
+          "title": "Latency p50 / p95 / p99",
           "type": "timeseries",
           "datasource": {
             "type": "prometheus",
@@ -107,12 +107,30 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "histogram_quantile(0.95, sum by (le, namespace, job) (rate(http_request_duration_seconds_bucket[5m])))",
+              "expr": "job:http_request_duration_seconds:p50_5m",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "legendFormat": "{{job}} ({{namespace}})"
+              "legendFormat": "p50 {{job}} ({{namespace}})"
+            },
+            {
+              "refId": "B",
+              "expr": "job:http_request_duration_seconds:p95_5m",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "legendFormat": "p95 {{job}} ({{namespace}})"
+            },
+            {
+              "refId": "C",
+              "expr": "job:http_request_duration_seconds:p99_5m",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "legendFormat": "p99 {{job}} ({{namespace}})"
             }
           ],
           "fieldConfig": {
@@ -121,7 +139,8 @@ data:
             },
             "overrides": []
           },
-          "options": {}
+          "options": {},
+          "description": "p99 = 99 of 100 requests were faster than this line (the slow tail). Alerts: p95 > 500ms, p99 > 1s for 10m."
         },
         {
           "id": 4,

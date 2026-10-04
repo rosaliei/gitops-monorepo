@@ -30,15 +30,32 @@ spec:
             description: "Error ratio is {{ $value | humanizePercentage }} (SLO allows 1%)."
             runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/error-budget-burn.md
     - name: slo.latency
+      # Latency percentiles from the request-duration histogram (recorded once, reused by alerts + dashboards).
+      #   p50 = the typical request    p95 = 1 in 20 is slower    p99 = 1 in 100 is slower (the "tail")
+      # Averages hide the tail: if 2 of every 100 requests take 5s and the rest 1ms, the average is ~100ms but p99 is 5s.
       rules:
+        - record: job:http_request_duration_seconds:p50_5m
+          expr: histogram_quantile(0.50, sum by (le, namespace, job) (rate(http_request_duration_seconds_bucket[5m])))
+        - record: job:http_request_duration_seconds:p95_5m
+          expr: histogram_quantile(0.95, sum by (le, namespace, job) (rate(http_request_duration_seconds_bucket[5m])))
+        - record: job:http_request_duration_seconds:p99_5m
+          expr: histogram_quantile(0.99, sum by (le, namespace, job) (rate(http_request_duration_seconds_bucket[5m])))
         - alert: HighLatencyP95
-          expr: |
-            histogram_quantile(0.95, sum by (le, namespace, job) (rate(http_request_duration_seconds_bucket[5m]))) > 0.5
+          expr: job:http_request_duration_seconds:p95_5m > 0.5
           for: 10m
           labels:
             severity: warning
           annotations:
             summary: "{{ $labels.job }} p95 latency above 500ms in {{ $labels.namespace }}"
+            runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/high-latency.md
+        - alert: HighLatencyP99
+          expr: job:http_request_duration_seconds:p99_5m > 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.job }} p99 latency above 1s in {{ $labels.namespace }}"
+            description: "1 in 100 requests is slower than 1s: the slow tail that users notice first."
             runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/high-latency.md
     - name: workloads
       rules:
