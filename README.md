@@ -10,7 +10,9 @@ running `kubectl` against the cluster. **GitHub Actions** builds, tests, scans a
 records what runs where, and **ArgoCD** makes the cluster match Git. It runs on a laptop with one
 command, and on AWS EKS with Terraform.
 
-![Overview](docs/diagrams/0-overview.svg)
+> **New here? → [Start here](docs/start-here.md)**: the whole project in 1 picture, 3 rules, 6 files, and 7 hands-on exercises.
+
+![Overview](docs/diagrams/1-overview.svg)
 
 ---
 
@@ -27,13 +29,24 @@ command, and on AWS EKS with Terraform.
 | **Pipeline monitoring** | Run summaries · Slack (pipeline + ArgoCD) · delivery dashboard · daily DORA metrics |
 | **Platform** | kind locally · Terraform for EKS · works on Rancher-managed clusters · External Secrets (AWS Secrets Manager) |
 
+## See it running
+
+Real ArgoCD UI on the local cluster after `make up`: 14 applications (root + 4 platform add-ons + 3 services × 3 environments), all **Synced** and **Healthy**.
+
+![ArgoCD applications](docs/screenshots/argocd-applications.png)
+
+The app-of-apps in the UI: `root` creates the platform apps, the two AppProjects and the `demo-apps` ApplicationSet, which fans out to the 9 service apps (compare with the [architecture diagram](docs/diagrams/4-architecture.svg)).
+
+![ArgoCD root app tree](docs/screenshots/argocd-root-tree.jpg)
+
 ## How it works: 8 steps
 
-![Walkthrough](docs/diagrams/1-walkthrough.svg)
+![Walkthrough](docs/diagrams/2-walkthrough.svg)
 
 | | Step by step |
 |---|---|
-| 🖐 **Do it by hand** | [docs/manual-steps.md](docs/manual-steps.md): 16 numbered steps, from `kind create cluster` to promoting to prod |
+| 🖐 **Do it by hand** | [docs/manual-steps.md](docs/manual-steps.md): 16 numbered steps, from `kind create cluster` to promoting to prod, also as a [visual guide with terminal and UI screens](docs/diagrams/3-manual-steps.svg) |
+| 📸 **See a real run** | [docs/real-run.md](docs/real-run.md): the same 16 steps performed for real, with 46 screenshots of every command and every click (release 0.2.0 shipped dev → qa → prod) |
 | ⚙️ **Watch the automation** | [docs/automation-steps.md](docs/automation-steps.md): 12 numbered steps, what each pipeline does and where to see it |
 
 ## Try it in one command
@@ -46,13 +59,18 @@ make ui-shop ENV=prod   # http://localhost:8081 shows which version runs in prod
 ```
 Needs Docker, kind, kubectl and Helm. `make help` lists everything, and `make down` removes it.
 
-## Diagrams
+## Deep dives
+
+Each diagram uses the real files from this repo. Click to open full size.
 
 | | |
 |---|---|
-| [![Architecture](docs/diagrams/2-architecture.svg)](docs/diagrams/2-architecture.svg) **Architecture** | [![CI/CD](docs/diagrams/3-cicd-pipeline.svg)](docs/diagrams/3-cicd-pipeline.svg) **CI/CD pipeline** |
-| [![Promotion](docs/diagrams/4-versioning-promotion.svg)](docs/diagrams/4-versioning-promotion.svg) **Versioning & promotion** | [![Security](docs/diagrams/5-security.svg)](docs/diagrams/5-security.svg) **Security** |
-| [![Observability](docs/diagrams/6-observability.svg)](docs/diagrams/6-observability.svg) **Observability** | Drawn in Excalidraw. Open or edit the sources in [`docs/diagrams/src`](docs/diagrams/src) at [excalidraw.com](https://excalidraw.com) |
+| [![Architecture](docs/diagrams/4-architecture.svg)](docs/diagrams/4-architecture.svg) **Architecture**: GitHub, every ArgoCD component, platform namespaces, the 3 environments | [![Config mapping](docs/diagrams/5-config-mapping.svg)](docs/diagrams/5-config-mapping.svg) **Config mapping**: line by line, `root-app` → ApplicationSet → env values → Helm templates → cluster |
+| [![CI/CD](docs/diagrams/6-cicd-pipeline.svg)](docs/diagrams/6-cicd-pipeline.svg) **CI/CD pipeline**: triggers, the real job graph, reusable workflows | [![Promotion](docs/diagrams/7-versioning-promotion.svg)](docs/diagrams/7-versioning-promotion.svg) **Versioning & promotion**: one digest moving dev → qa → prod, approval, rollback |
+| [![Security](docs/diagrams/8-security.svg)](docs/diagrams/8-security.svg) **Security**: a control at every stage, with the config that enforces it | [![Observability](docs/diagrams/9-observability.svg)](docs/diagrams/9-observability.svg) **Observability**: SLO alerts, dashboards, ArgoCD notifications, DORA |
+| [![Prometheus](docs/diagrams/11-prometheus.svg)](docs/diagrams/11-prometheus.svg) **Prometheus**: how a metric gets from the app to an alert: labels, ServiceMonitor, operator, rules, Alertmanager, plus **p50 / p95 / p99** explained | |
+
+Drawn in Excalidraw. Open or edit the sources from [`docs/diagrams/src`](docs/diagrams/src) at [excalidraw.com](https://excalidraw.com).
 
 ## Repository
 

@@ -1,0 +1,39 @@
+# Unit test for the latency alert rules (run by scripts/validate.sh with promtool).
+# Synthetic traffic: every minute 100 requests, 98 under 5ms and 2 taking ~5s.
+# Expect: p99 ~3.75s (interpolated inside the 2.5-5s bucket) -> HighLatencyP99 fires; p95 ~4.8ms -> HighLatencyP95 quiet.
+rule_files: [rules.yaml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{job="orders-api",namespace="demo-prod",le="0.005"}'
+        values: '0+98x30'
+      - series: 'http_request_duration_seconds_bucket{job="orders-api",namespace="demo-prod",le="2.5"}'
+        values: '0+98x30'
+      - series: 'http_request_duration_seconds_bucket{job="orders-api",namespace="demo-prod",le="5"}'
+        values: '0+100x30'
+      - series: 'http_request_duration_seconds_bucket{job="orders-api",namespace="demo-prod",le="+Inf"}'
+        values: '0+100x30'
+    promql_expr_test:
+      - expr: round(job:http_request_duration_seconds:p99_5m, 0.01)
+        eval_time: 20m
+        exp_samples:
+          - labels: '{job="orders-api",namespace="demo-prod"}'
+            value: 3.75
+      - expr: round(job:http_request_duration_seconds:p95_5m, 0.0001)
+        eval_time: 20m
+        exp_samples:
+          - labels: '{job="orders-api",namespace="demo-prod"}'
+            value: 0.0048
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HighLatencyP99
+        exp_alerts:
+          - exp_labels: {job: orders-api, namespace: demo-prod, severity: warning}
+            exp_annotations:
+              summary: "orders-api p99 latency above 1s in demo-prod"
+              description: "1 in 100 requests is slower than 1s: the slow tail that users notice first."
+              runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/high-latency.md
+      - eval_time: 20m
+        alertname: HighLatencyP95
+        exp_alerts: []

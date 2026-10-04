@@ -3,7 +3,7 @@
 The same journey as [manual-steps.md](manual-steps.md), done by GitHub Actions and ArgoCD.
 The numbers match the walkthrough diagram:
 
-![Walkthrough](diagrams/1-walkthrough.svg)
+![Walkthrough](diagrams/2-walkthrough.svg)
 
 | # | You do | Automation does | File |
 |---|---|---|---|

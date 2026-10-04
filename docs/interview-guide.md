@@ -65,6 +65,15 @@ cluster could not decrypt them.)
 99% of requests succeed over 30 days. Alerting uses multi-window burn rate (1h and 5m at 14.4x),
 so it pages on real budget burn and clears quickly after a fix. Every alert has a runbook.
 
+### "What is p99, and why not just the average?"
+p99 is the latency that 99 out of 100 requests beat, so it describes the slowest 1%: the *tail*.
+Averages hide it: if 2 of every 100 requests take 5 s and the rest 1 ms, the average is about 100 ms but p99 is 5 s.
+Here, Prometheus recording rules compute p50, p95 and p99 from the request-duration **histogram**
+(`histogram_quantile` over the buckets). The values are estimates, interpolated inside a bucket, so bucket
+boundaries matter. Alerts fire on p95 > 500 ms and p99 > 1 s for 10 minutes, and the rules have a promtool
+unit test proving the p99 alert fires on a 2% slow tail while p95 stays quiet.
+([alerts.yaml](../platform/manifests/monitoring/alerts.yaml), [test](../platform/tests/latency-rules.test.yaml))
+
 ### "What would you add for a real company?"
 Webhook instead of polling, ArgoCD SSO + RBAC, image signature verification at admission
 (policy-controller / Kyverno verifyImages), progressive delivery (Argo Rollouts canary with the error-rate

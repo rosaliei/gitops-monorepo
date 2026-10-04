@@ -80,6 +80,11 @@ if out=$(kubectl -n "$NS" set image deploy/orders-api orders-api=local/orders-ap
 fi
 grep -q "Manual changes are blocked" <<<"$out" || fail "unexpected error: $out"
 pass "kubectl set image -> $(grep -o 'Manual changes are blocked[^(]*' <<<"$out")"
+if out=$(kubectl -n "$NS" scale deploy/orders-api --replicas=3 2>&1); then
+  fail "manual scale was allowed"
+fi
+grep -q "Manual changes are blocked" <<<"$out" || fail "unexpected error: $out"
+pass "kubectl scale -> denied"
 
 log "policy: ':latest' images are rejected"
 if out=$(helm template bad charts/app --show-only templates/deployment.yaml \

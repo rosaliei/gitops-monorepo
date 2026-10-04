@@ -18,7 +18,7 @@ spec:
       - apiGroups: ["apps"]
         apiVersions: ["v1"]
         operations: ["UPDATE", "DELETE"]
-        resources: ["deployments"]
+        resources: ["deployments", "deployments/scale"]   # scale is a subresource: kubectl scale
       - apiGroups: [""]
         apiVersions: ["v1"]
         operations: ["UPDATE", "DELETE"]

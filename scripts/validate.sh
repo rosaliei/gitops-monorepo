@@ -29,4 +29,11 @@ echo "==> kubeconform (Kubernetes $KUBE_VERSION + CRDs catalog)"
   -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
   "$OUT" argocd platform/manifests
 
+echo "==> promtool: check + unit-test the alert rules"
+mkdir -p .out/rules
+docker run --rm -v "$PWD:/w" mikefarah/yq:4 '.spec' /w/platform/manifests/monitoring/alerts.yaml > .out/rules/rules.yaml
+cp platform/tests/*.test.yaml .out/rules/
+docker run --rm -v "$PWD/.out/rules:/r" -w /r --entrypoint promtool prom/prometheus:v3.5.0 check rules rules.yaml
+docker run --rm -v "$PWD/.out/rules:/r" -w /r --entrypoint promtool prom/prometheus:v3.5.0 test rules latency-rules.test.yaml
+
 echo "All manifests are valid."
