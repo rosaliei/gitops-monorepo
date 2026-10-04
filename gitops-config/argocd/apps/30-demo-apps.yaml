@@ -7,19 +7,19 @@ metadata:
   name: demo-apps
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "2"       # wave 2: last, after the platform is ready
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
-  generators:
-    - git:
+  goTemplate: true                          # use Go templates ({{ .path.basename }}) in the template below
+  goTemplateOptions: ["missingkey=error"]   # a typo in a template variable fails loudly instead of rendering ""
+  generators:                               # WHERE the list of apps comes from
+    - git:                                  # look at files in Git
         repoURL: https://github.com/rosaliei/gitops-monorepo.git
         revision: main
         files:
           - path: "gitops-config/environments/*/*.yaml"
-  template:
+  template:                                 # WHAT each generated Application looks like (one per file found)
     metadata:
-      name: '{{ trimSuffix ".yaml" .path.filename }}-{{ .path.basename }}'
+      name: '{{ trimSuffix ".yaml" .path.filename }}-{{ .path.basename }}'  # orders-api.yaml in dev/ -> "orders-api-dev"
       labels:
         app: '{{ trimSuffix ".yaml" .path.filename }}'
         env: '{{ .path.basename }}'
@@ -29,29 +29,29 @@ spec:
         notifications.argoproj.io/subscribe.on-health-degraded.slack: gitops-demo
         notifications.argoproj.io/subscribe.on-sync-failed.slack: gitops-demo
     spec:
-      project: demo
+      project: demo                         # the locked-down project (see 00-projects.yaml)
       source:
         repoURL: https://github.com/rosaliei/gitops-monorepo.git
         targetRevision: main
-        path: gitops-config/charts/app
+        path: gitops-config/charts/app      # every app uses the same Helm chart
         helm:
-          releaseName: '{{ trimSuffix ".yaml" .path.filename }}'
+          releaseName: '{{ trimSuffix ".yaml" .path.filename }}'  # Helm release = app name (orders-api)
           valueFiles:
             - '../../../{{ .path.path }}/{{ .path.filename }}'   # chart is 3 levels deep: gitops-config/charts/app
       destination:
         server: https://kubernetes.default.svc
-        namespace: 'demo-{{ .path.basename }}'
+        namespace: 'demo-{{ .path.basename }}'  # folder dev/ -> namespace demo-dev
       syncPolicy:
-        automated:
-          prune: true
+        automated:                          # deploy on its own when Git changes
+          prune: true                       # delete from the cluster what was deleted from Git
           selfHeal: true      # undo manual changes (the admission policy blocks most of them anyway)
         syncOptions:
-          - CreateNamespace=true
-          - SkipDryRunOnMissingResource=true
+          - CreateNamespace=true            # create demo-dev/qa/prod if missing
+          - SkipDryRunOnMissingResource=true  # ServiceMonitor/ExternalSecret CRDs may not exist yet on a fresh cluster
         managedNamespaceMetadata:
           labels:
             gitops.demo/protected: "true"   # turns on platform/manifests/policies/block-manual-changes.yaml
-        retry:
+        retry:                              # retry failed syncs with growing waits
           limit: 5
           backoff:
             duration: 10s

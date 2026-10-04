@@ -3,7 +3,7 @@ name: Lint workflows
 
 on:
   pull_request:
-    paths: [".github/**", "gitops-config/scripts/**"]
+    paths: [".github/**", "gitops-config/scripts/**"]  # only when workflows or scripts change
   push:
     branches: [main]
     paths: [".github/**", "gitops-config/scripts/**"]

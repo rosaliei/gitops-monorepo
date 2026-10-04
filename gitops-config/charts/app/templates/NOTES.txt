@@ -1,3 +1,4 @@
+{{- /* NOTES.txt: printed after "helm install". ArgoCD ignores it. */}}
 {{ .Release.Name }} {{ .Values.image.tag }} is deployed to namespace {{ .Release.Namespace }} ({{ .Values.environment }}).
 
 Try it:

@@ -1,3 +1,4 @@
+{{/* Service: one stable name + IP in front of the pods (pods come and go, the Service stays). */}}
 apiVersion: v1
 kind: Service
 metadata:
@@ -5,9 +6,9 @@ metadata:
   labels:
     {{- include "app.labels" . | nindent 4 }}
 spec:
-  selector:
+  selector:                    # send traffic to pods with these labels
     {{- include "app.selector" . | nindent 4 }}
   ports:
     - name: http
       port: {{ .Values.service.port }}
-      targetPort: http
+      targetPort: http         # the container port named "http" in deployment.yaml

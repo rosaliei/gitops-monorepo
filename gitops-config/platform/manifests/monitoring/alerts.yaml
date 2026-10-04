@@ -1,18 +1,18 @@
 # Alerts for the product services and for delivery itself.
 # Every alert links to a runbook: what it means, how to check, how to fix.
 apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
+kind: PrometheusRule                        # Prometheus Operator loads this into Prometheus as rules
 metadata:
   name: gitops-demo-alerts
   namespace: monitoring
 spec:
-  groups:
+  groups:                                   # a group = rules evaluated together, every 30s by default
     - name: slo.availability
       # SLO: 99% of requests succeed (non-5xx) over 30 days -> error budget = 1%.
       # Multi-window burn rate: page when we burn budget 14.4x too fast (2% of the 30-day budget
       # in 1 hour), confirmed by the last 5 minutes so the alert clears quickly after a fix.
       rules:
-        - record: job:http_error_ratio:rate5m
+        - record: job:http_error_ratio:rate5m  # recording rule: pre-computes a query and saves it as a new metric
           expr: |
             sum by (namespace, job) (rate(http_requests_total{status=~"5.."}[5m]))
               / sum by (namespace, job) (rate(http_requests_total[5m]))
@@ -20,14 +20,15 @@ spec:
           expr: |
             sum by (namespace, job) (rate(http_requests_total{status=~"5.."}[1h]))
               / sum by (namespace, job) (rate(http_requests_total[1h]))
-        - alert: ErrorBudgetBurnFast
+        - alert: ErrorBudgetBurnFast        # alert rule: fires when expr returns something
           expr: job:http_error_ratio:rate1h > (14.4 * 0.01) and job:http_error_ratio:rate5m > (14.4 * 0.01)
-          for: 2m
+          for: 2m                          # must stay true for 2 minutes before it fires (no flapping)
           labels:
-            severity: critical
+            severity: critical             # Alertmanager routes by severity (critical = page someone)
           annotations:
             summary: "{{ $labels.job }} in {{ $labels.namespace }} is burning its error budget fast"
             description: "Error ratio is {{ $value | humanizePercentage }} (SLO allows 1%)."
+            # runbook_url: the on-call engineer clicks this from the alert
             runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/error-budget-burn.md
     - name: slo.latency
       # Latency percentiles from the request-duration histogram (recorded once, reused by alerts + dashboards).
@@ -59,7 +60,7 @@ spec:
             runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/high-latency.md
     - name: workloads
       rules:
-        - alert: PodCrashLooping
+        - alert: PodCrashLooping            # from kube-state-metrics (installed by kube-prometheus-stack)
           expr: increase(kube_pod_container_status_restarts_total{namespace=~"demo-.*"}[15m]) > 3
           labels:
             severity: warning
@@ -68,7 +69,7 @@ spec:
             runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/pod-crashlooping.md
     - name: gitops
       rules:
-        - alert: ArgoAppDegraded
+        - alert: ArgoAppDegraded            # from ArgoCD metrics (see argocd-servicemonitor.yaml)
           expr: argocd_app_info{health_status="Degraded"} == 1
           for: 5m
           labels:
@@ -76,7 +77,7 @@ spec:
           annotations:
             summary: "ArgoCD app {{ $labels.name }} is Degraded"
             runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/argocd-app-degraded.md
-        - alert: ArgoAppOutOfSync
+        - alert: ArgoAppOutOfSync           # Git and cluster differ for too long (sync failing?)
           expr: argocd_app_info{sync_status="OutOfSync"} == 1
           for: 15m
           labels:

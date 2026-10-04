@@ -1,18 +1,20 @@
+{{/* Deployment: runs the app pods and replaces them one by one when the image changes. */}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}
+  name: {{ .Release.Name }}       # release name = app name, e.g. orders-api
   labels:
     {{- include "app.labels" . | nindent 4 }}
 spec:
+  {{- /* with an HPA, the HPA owns the replica count, so we must not set it here */}}
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
-  revisionHistoryLimit: 3
+  revisionHistoryLimit: 3       # keep 3 old ReplicaSets (Git is the real history)
   strategy:
     rollingUpdate:
       maxUnavailable: 0       # never drop below the desired replicas during a rollout
-      maxSurge: 1
+      maxSurge: 1             # start 1 new pod before an old one is removed
   selector:
     matchLabels:
       {{- include "app.selector" . | nindent 6 }}
@@ -21,30 +23,33 @@ spec:
       labels:
         {{- include "app.labels" . | nindent 8 }}
     spec:
-      automountServiceAccountToken: false
-      securityContext:
+      automountServiceAccountToken: false   # the app never calls the Kubernetes API, so give it no token
+      securityContext:                      # pod-level hardening (the admission policy rejects pods without it)
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: {{ .Release.Name }}
-          image: {{ include "app.image" . }}
+          image: {{ include "app.image" . }}   # repo:tag@sha256:digest, from the environment file
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.containerPort }}
           env:
+            # the namespace tells the app which environment it runs in (shown on the status page)
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: APP_ENV
               value: {{ .Values.environment | quote }}
+            {{- /* one env var per entry in values "env:" */}}
             {{- range $name, $value := .Values.env }}
             - name: {{ $name }}
               value: {{ $value | quote }}
             {{- end }}
             {{- if .Values.secretEnv.enabled }}
+            {{- /* secrets come from the Secret that externalsecret.yaml creates, never from Git */}}
             {{- range $name, $_ := .Values.secretEnv.data }}
             - name: {{ $name }}
               valueFrom:
@@ -55,24 +60,24 @@ spec:
                   # until External Secrets has created the Secret, instead of running without it.
             {{- end }}
             {{- end }}
-          livenessProbe:
+          livenessProbe:          # restart the container if this fails
             httpGet:
               path: {{ .Values.probes.liveness }}
               port: http
             periodSeconds: 10
-          readinessProbe:
+          readinessProbe:         # stop sending traffic if this fails
             httpGet:
               path: {{ .Values.probes.readiness }}
               port: http
             periodSeconds: 5
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          securityContext:
+          securityContext:        # container-level hardening
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
-          volumeMounts:
+          volumeMounts:           # writable folders, because the root filesystem is read-only
             {{- range $i, $dir := .Values.writableDirs }}
             - name: writable-{{ $i }}
               mountPath: {{ $dir }}
@@ -80,5 +85,5 @@ spec:
       volumes:
         {{- range $i, $dir := .Values.writableDirs }}
         - name: writable-{{ $i }}
-          emptyDir: {}
+          emptyDir: {}            # temporary folder that lives as long as the pod
         {{- end }}

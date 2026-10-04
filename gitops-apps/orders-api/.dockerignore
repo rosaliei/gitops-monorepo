@@ -1,3 +1,4 @@
+# Files NOT sent to docker build: smaller, faster builds, and tests/docs never end up in the image.
 __pycache__
 .pytest_cache
 tests

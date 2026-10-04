@@ -1,13 +1,13 @@
 # Keep dependencies and base images patched.
 #   app dependencies / base images -> "fix(deps)": ships a patch release of that app
 #   GitHub Actions                 -> "chore(deps)": CI only, no release
-version: 2
+version: 2                                  # Dependabot config format
 updates:
   - package-ecosystem: github-actions
     directory: /
-    schedule: { interval: monthly }
+    schedule: { interval: monthly }         # one batch of PRs per month (less noise)
     commit-message: { prefix: "chore(deps)" }
-    groups:
+    groups:                                 # one PR for all updates of this kind, not one per package
       actions: { patterns: ["*"] }
   - package-ecosystem: pip
     directory: /gitops-apps/orders-api

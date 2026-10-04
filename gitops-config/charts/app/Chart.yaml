@@ -1,5 +1,6 @@
-apiVersion: v2
-name: app
+# Chart.yaml = the chart's name card. Helm reads it to know what this chart is.
+apiVersion: v2              # v2 = Helm 3 chart format
+name: app                   # one chart named "app", reused by every service
 description: One simple chart shared by every service in this repo (Deployment + Service, optional HPA, ServiceMonitor, ExternalSecret).
-type: application
-version: 1.0.1
+type: application           # deploys something (a "library" chart would only hold helpers)
+version: 1.0.1              # version of the TEMPLATE itself, not of the apps. Bump it when you change templates/.

@@ -3,7 +3,7 @@
 #   feat: ...  -> minor  0.1.0 -> 0.2.0
 #   feat!: ... -> major  (after 1.0.0)
 # release-please keeps one "release PR" per app open, with the next version + CHANGELOG.
-# Merging it bumps apps/<app>/version.txt and tags <app>-v<version>. The CI/CD pipeline then
+# Merging it bumps gitops-apps/<app>/version.txt and tags <app>-v<version>. The CI/CD pipeline then
 # sees a version that is not in the registry yet, publishes it and opens the qa promotion PR.
 name: Release
 
@@ -12,8 +12,8 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: write                           # create tags + GitHub Releases
+  pull-requests: write                      # open/update the release PR
 
 jobs:
   release-please:
@@ -22,8 +22,8 @@ jobs:
       - uses: googleapis/release-please-action@v5
         id: release
         with:
-          config-file: gitops-apps/release-please-config.json
-          manifest-file: gitops-apps/.release-please-manifest.json
+          config-file: gitops-apps/release-please-config.json  # which folders are versioned apps
+          manifest-file: gitops-apps/.release-please-manifest.json  # current version of each app (release-please updates it)
       - name: summary
         run: |
           echo "## Releases" >> "$GITHUB_STEP_SUMMARY"

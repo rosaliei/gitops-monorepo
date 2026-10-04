@@ -1,3 +1,4 @@
+{{- /* ServiceMonitor: tells Prometheus "scrape the Service with these labels, on port http, every 15s". */}}
 {{- if .Values.metrics.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -10,7 +11,7 @@ spec:
     matchLabels:
       {{- include "app.selector" . | nindent 6 }}
   endpoints:
-    - port: http
+    - port: http                 # port NAME on the Service (not the number)
       path: {{ .Values.metrics.path }}
       interval: 15s
 {{- end }}

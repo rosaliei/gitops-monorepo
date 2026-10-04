@@ -1,21 +1,30 @@
 # dev: CI commits a new build here on every merge to main (automatic).
 # Chart defaults: charts/app/values.yaml
+# Passed to the app as APP_ENV.
 environment: dev
 
+# WHICH image runs here. Changing tag/digest and pushing = deploying.
+# (set-image.sh rewrites the tag/digest lines, so keep comments off those lines.)
 image:
   repository: ghcr.io/rosaliei/web-frontend
+  # version: x.y.z = a release, sha-xxxxxxx = a CI build of main (dev only)
   tag: "sha-d50fe2e"
+  # exact image bytes; qa/prod use the SAME digest that was tested in dev (build once, promote)
   digest: "sha256:ef815646eb2600444690bc7740ce720da6f1018e99fd08909fdfdd8c8a1233d0"
 
+# number of pods (this environment has no autoscaling)
 replicaCount: 1
 
+# nginx has no /readyz, so readiness uses /healthz
 probes:
   readiness: /healthz
 
+# plain config -> environment variables (secrets never go here)
 env:
   ORDERS_API_HOST: orders-api.demo-dev.svc.cluster.local
   INVENTORY_HOST: inventory-svc.demo-dev.svc.cluster.local
 
+# nginx writes its generated config here (root filesystem is read-only)
 writableDirs:
   - /tmp
   - /etc/nginx/conf.d

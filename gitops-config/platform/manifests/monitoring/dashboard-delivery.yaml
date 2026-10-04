@@ -1,11 +1,12 @@
 # Grafana loads any ConfigMap labelled grafana_dashboard=1 (kube-prometheus-stack sidecar).
+# The dashboard itself is the JSON below (exported from Grafana). Change it in Grafana, export, paste here.
 apiVersion: v1
-kind: ConfigMap
+kind: ConfigMap                             # a dashboard is just a ConfigMap; Git owns it, so UI edits are lost on restart
 metadata:
   name: dashboard-gitops-delivery
   namespace: monitoring
   labels:
-    grafana_dashboard: "1"
+    grafana_dashboard: "1"                  # this label is what makes Grafana pick it up
 data:
   gitops-delivery.json: |
     {

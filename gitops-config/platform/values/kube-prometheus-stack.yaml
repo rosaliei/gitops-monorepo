@@ -1,5 +1,5 @@
 # Sized for a laptop (kind). Components that cannot be scraped on kind are turned off.
-kubeEtcd:
+kubeEtcd:                                   # control-plane parts kind does not expose to scrape
   enabled: false
 kubeControllerManager:
   enabled: false
@@ -10,18 +10,20 @@ kubeProxy:
 nodeExporter:
   enabled: false        # needs host mounts that Docker Desktop does not provide
 
+# Prometheus = collects metrics and evaluates alert rules
 prometheus:
   prometheusSpec:
     # Pick up ServiceMonitors / rules from every namespace, not just this Helm release.
-    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false  # without this, our ServiceMonitors in demo-* would be ignored
     podMonitorSelectorNilUsesHelmValues: false
-    ruleSelectorNilUsesHelmValues: false
-    retention: 2d
+    ruleSelectorNilUsesHelmValues: false    # same for PrometheusRules (alerts.yaml)
+    retention: 2d                           # keep 2 days of metrics (laptop disk)
     resources:
       requests:
         cpu: 100m
         memory: 400Mi
 
+# Alertmanager = receives firing alerts, groups them, sends to Slack/PagerDuty
 alertmanager:
   alertmanagerSpec:
     resources:
@@ -29,9 +31,10 @@ alertmanager:
         cpu: 10m
         memory: 32Mi
 
+# Grafana = dashboards on top of Prometheus
 grafana:
   adminPassword: admin   # demo only. Real clusters: grafana.admin.existingSecret + ExternalSecret
   sidecar:
     dashboards:
       enabled: true
-      searchNamespace: ALL
+      searchNamespace: ALL                  # load dashboard ConfigMaps from every namespace

@@ -2,38 +2,38 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: platform
+  name: platform                            # project 1: cluster add-ons (trusted, may create anything)
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-wave: "-1"      # wave -1 = created first, before any app that uses it
 spec:
   description: Cluster add-ons (monitoring, secrets, policies). Owned by the platform team.
-  sourceRepos: ["*"]
+  sourceRepos: ["*"]                        # may pull from any repo / Helm chart repo
   destinations:
     - server: https://kubernetes.default.svc
-      namespace: "*"
-  clusterResourceWhitelist:
+      namespace: "*"                        # may deploy to any namespace
+  clusterResourceWhitelist:                 # cluster-wide kinds it may create (CRDs, policies, ...)
     - group: "*"
       kind: "*"
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: demo
+  name: demo                                # project 2: the product services (least privilege)
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
 spec:
   description: Product services. Least privilege - only this repo, only demo-* namespaces, only these kinds.
   sourceRepos:
-    - https://github.com/rosaliei/gitops-monorepo.git
+    - https://github.com/rosaliei/gitops-monorepo.git  # only this repo
   destinations:
     - server: https://kubernetes.default.svc
-      namespace: demo-*
+      namespace: demo-*                     # only demo-dev, demo-qa, demo-prod
   clusterResourceWhitelist:
     - group: ""
-      kind: Namespace
-  namespaceResourceWhitelist:
+      kind: Namespace                       # the only cluster-wide kind: so it can create its namespace
+  namespaceResourceWhitelist:               # exactly what the Helm chart renders, nothing else (no Roles, no Secrets)
     - { group: "", kind: Service }
     - { group: apps, kind: Deployment }
     - { group: autoscaling, kind: HorizontalPodAutoscaler }

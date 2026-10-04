@@ -5,7 +5,7 @@
 name: Security
 
 on:
-  pull_request:
+  pull_request:                             # every PR (no path filter: a secret can be in any file)
   push:
     branches: [main]
   schedule:
@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          fetch-depth: 0                    # full history: a secret deleted later is still in old commits
       - run: |
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
             git /repo --config /repo/.gitleaks.toml --redact --verbose --no-banner
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write
+      security-events: write                # upload results to the Security tab
     steps:
       - uses: actions/checkout@v7
       - name: scan

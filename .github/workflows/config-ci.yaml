@@ -8,22 +8,22 @@
 name: Config CI
 
 on:
-  pull_request:
+  pull_request:                             # 1. on every PR that touches gitops-config/
     paths:
       - "gitops-config/**"
       - ".github/workflows/config-ci.yaml"
-  push:
+  push:                                     # 2. again after merge (ArgoCD is already applying it)
     branches: [main]
     paths:
       - "gitops-config/**"
       - ".github/workflows/config-ci.yaml"
   workflow_dispatch:
 
-concurrency:
+concurrency:                                # one run per PR / commit
   group: config-ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-permissions:
+permissions:                                # read-only: this pipeline never writes anything
   contents: read
 
 defaults:
@@ -31,6 +31,7 @@ defaults:
     shell: bash
 
 jobs:
+  # Job 1 (fast, ~1 min): render and check every file, no cluster needed.
   validate:
     name: validate manifests
     runs-on: ubuntu-latest
@@ -45,17 +46,19 @@ jobs:
           mkdir -p "$HOME/bin"
           curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar xz -C "$HOME/bin" kubeconform
           echo "$HOME/bin" >> "$GITHUB_PATH"
+      # the same script you run locally: make validate
       - run: gitops-config/scripts/validate.sh
       - name: upload rendered manifests (review what will be deployed)
         uses: actions/upload-artifact@v7
         with:
           name: rendered-manifests
-          path: gitops-config/.out/rendered
+          path: gitops-config/.out/rendered # download from the run page to see the exact YAML ArgoCD will apply
           retention-days: 7
 
+  # Job 2 (~5 min): real Kubernetes in Docker (kind), throwaway.
   e2e:
     name: e2e (kind)
-    needs: validate
+    needs: validate                         # only spin up a cluster if the cheap checks passed
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

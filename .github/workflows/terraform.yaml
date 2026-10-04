@@ -23,6 +23,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.13.3
-      - run: terraform fmt -check -diff
-      - run: terraform init -backend=false -input=false
-      - run: terraform validate
+      - run: terraform fmt -check -diff     # formatting
+      - run: terraform init -backend=false -input=false  # download providers/modules, no state, no AWS login
+      - run: terraform validate             # syntax + types

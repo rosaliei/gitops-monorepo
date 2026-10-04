@@ -1,4 +1,6 @@
 # Used by CI to render every optional template at least once.
+# validate.sh runs helm lint + kubeconform with this file, so a broken HPA/ExternalSecret/ServiceMonitor
+# template fails the PR even if no environment turns that feature on yet.
 environment: ci
 image:
   repository: ghcr.io/example/orders-api

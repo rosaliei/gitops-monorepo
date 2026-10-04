@@ -1,21 +1,30 @@
 # qa: CI opens a PR here when a new version is released (merge = deploy).
 # Chart defaults: charts/app/values.yaml
+# Passed to the app as APP_ENV.
 environment: qa
 
+# WHICH image runs here. Changing tag/digest and pushing = deploying.
+# (set-image.sh rewrites the tag/digest lines, so keep comments off those lines.)
 image:
   repository: ghcr.io/rosaliei/orders-api
+  # version: x.y.z = a release, sha-xxxxxxx = a CI build of main (dev only)
   tag: "0.2.0"
+  # exact image bytes; qa/prod use the SAME digest that was tested in dev (build once, promote)
   digest: "sha256:f9d76136f75a2fe5ffe40ce80f47a5b71552b95b8d5a51b58abca25e323a439f"
 
+# number of pods (this environment has no autoscaling)
 replicaCount: 1
 
+# plain config -> environment variables (secrets never go here)
 env:
   LOG_LEVEL: debug
 
+# secrets: Git only names the key in the secret store; External Secrets fetches the value
 secretEnv:
   enabled: true
   data:
     API_KEY: qa/orders-api/api-key
 
+# create a ServiceMonitor so Prometheus scrapes /metrics
 metrics:
   enabled: true

@@ -1,3 +1,4 @@
+{{- /* HorizontalPodAutoscaler: adds pods when CPU is high, removes them when it is low. Prod only. */}}
 {{- if .Values.autoscaling.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -6,13 +7,13 @@ metadata:
   labels:
     {{- include "app.labels" . | nindent 4 }}
 spec:
-  scaleTargetRef:
+  scaleTargetRef:              # which Deployment to scale
     apiVersion: apps/v1
     kind: Deployment
     name: {{ .Release.Name }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
-  metrics:
+  metrics:                     # scale on average CPU, as % of the CPU request
     - type: Resource
       resource:
         name: cpu

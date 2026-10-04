@@ -6,32 +6,37 @@ configs:
     timeout.reconciliation: 60s      # poll Git every minute (use a GitHub webhook in real life)
 
 # Expose metrics; the ServiceMonitors live in platform/manifests/monitoring/.
+# controller = compares Git with the cluster and syncs
 controller:
   metrics:
     enabled: true
+# server = the UI and API
 server:
   metrics:
     enabled: true
+# repoServer = clones Git and renders Helm charts
 repoServer:
   metrics:
     enabled: true
+# applicationSet = turns the environment files into Applications
 applicationSet:
   metrics:
     enabled: true
 
-dex:
+dex:                                        # dex = SSO login (GitHub/Okta). Off locally: we log in as admin
   enabled: false
 
+# notifications = messages on deploy / failure
 notifications:
   enabled: true
   metrics:
     enabled: true
   # Slack is optional: kubectl -n argocd patch secret argocd-notifications-secret \
   #   -p '{"stringData":{"slack-token":"xoxb-..."}}'
-  notifiers:
+  notifiers:                                # WHERE to send (Slack)
     service.slack: |
       token: $slack-token
-  templates:
+  templates:                                # WHAT the message says
     template.app-deployed: |
       message: |
         :rocket: *{{.app.metadata.name}}* deployed and healthy.
@@ -41,7 +46,7 @@ notifications:
       message: ":red_circle: *{{.app.metadata.name}}* is Degraded. Check ArgoCD and the runbooks in docs/runbooks/."
     template.app-sync-failed: |
       message: ":x: *{{.app.metadata.name}}* sync failed: {{.app.status.operationState.message}}"
-  triggers:
+  triggers:                                 # WHEN to send (the apps subscribe via annotations in 30-demo-apps.yaml)
     trigger.on-deployed: |
       - description: New revision synced and healthy
         oncePer: app.status.sync.revision

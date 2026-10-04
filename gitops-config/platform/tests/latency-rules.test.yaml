@@ -1,20 +1,20 @@
 # Unit test for the latency alert rules (run by scripts/validate.sh with promtool).
 # Synthetic traffic: every minute 100 requests, 98 under 5ms and 2 taking ~5s.
 # Expect: p99 ~3.75s (interpolated inside the 2.5-5s bucket) -> HighLatencyP99 fires; p95 ~4.8ms -> HighLatencyP95 quiet.
-rule_files: [rules.yaml]
-evaluation_interval: 1m
+rule_files: [rules.yaml]                    # validate.sh extracts the rules from alerts.yaml into rules.yaml
+evaluation_interval: 1m                     # how often rules are evaluated in the test
 tests:
   - interval: 1m
     input_series:
       - series: 'http_request_duration_seconds_bucket{job="orders-api",namespace="demo-prod",le="0.005"}'
-        values: '0+98x30'
+        values: '0+98x30'                   # counter: starts at 0, +98 every minute, for 30 minutes
       - series: 'http_request_duration_seconds_bucket{job="orders-api",namespace="demo-prod",le="2.5"}'
         values: '0+98x30'
       - series: 'http_request_duration_seconds_bucket{job="orders-api",namespace="demo-prod",le="5"}'
         values: '0+100x30'
       - series: 'http_request_duration_seconds_bucket{job="orders-api",namespace="demo-prod",le="+Inf"}'
         values: '0+100x30'
-    promql_expr_test:
+    promql_expr_test:                       # check the recording rules return the expected numbers
       - expr: round(job:http_request_duration_seconds:p99_5m, 0.01)
         eval_time: 20m
         exp_samples:
@@ -25,7 +25,7 @@ tests:
         exp_samples:
           - labels: '{job="orders-api",namespace="demo-prod"}'
             value: 0.0048
-    alert_rule_test:
+    alert_rule_test:                        # check which alerts fire at minute 20
       - eval_time: 20m
         alertname: HighLatencyP99
         exp_alerts:
@@ -36,4 +36,4 @@ tests:
               runbook_url: https://github.com/rosaliei/gitops-monorepo/blob/main/docs/runbooks/high-latency.md
       - eval_time: 20m
         alertname: HighLatencyP95
-        exp_alerts: []
+        exp_alerts: []                      # p95 is fast, so this one must NOT fire

@@ -1,15 +1,15 @@
 # Scrape ArgoCD so we can see delivery health: argocd_app_info (sync/health per app)
 # and argocd_app_sync_total (how often we deploy).
 apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
+kind: ServiceMonitor                        # "Prometheus, please scrape this Service"
 metadata:
   name: argocd-application-controller
-  namespace: argocd
+  namespace: argocd                         # lives next to the Service it points at
 spec:
-  selector:
+  selector:                                 # find the Service by its labels
     matchLabels:
       app.kubernetes.io/name: argocd-metrics
       app.kubernetes.io/component: application-controller
   endpoints:
-    - port: http-metrics
-      interval: 30s
+    - port: http-metrics                    # port NAME on that Service
+      interval: 30s                         # scrape every 30 seconds

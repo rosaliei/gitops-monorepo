@@ -10,13 +10,13 @@
 name: Apps CI/CD
 
 on:
-  pull_request:
+  pull_request:                             # 1. on every PR: check only
     paths:
       - "gitops-apps/**"
       - ".github/workflows/apps-ci.yaml"
       - ".github/workflows/_test.yaml"
       - ".github/workflows/_build.yaml"
-  push:
+  push:                                     # 2. on merge to main: check, publish, deploy dev
     branches: [main]
     paths:
       - "gitops-apps/**"
@@ -25,11 +25,11 @@ on:
       - ".github/workflows/_build.yaml"
   workflow_dispatch:   # re-run everything by hand (builds all apps)
 
-concurrency:
+concurrency:                                # one run per PR / commit
   group: ci-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}  # a new PR push cancels the old run; main runs always finish
 
-permissions:
+permissions:                                # least privilege: read-only by default, jobs ask for more
   contents: read
 
 defaults:
@@ -37,6 +37,7 @@ defaults:
     shell: bash
 
 jobs:
+  # Job 1: which apps changed? Output is a JSON list used by the jobs below.
   changes:
     name: detect changes
     runs-on: ubuntu-latest
@@ -66,18 +67,20 @@ jobs:
           echo "apps=$apps" >> "$GITHUB_OUTPUT"
           echo "Apps to build: \`$apps\`" >> "$GITHUB_STEP_SUMMARY"
 
+  # Job 2: lint + unit tests, one parallel job per changed app.
   test:
     needs: changes
-    if: needs.changes.outputs.apps != '[]'
+    if: needs.changes.outputs.apps != '[]'  # skip when no app changed
     strategy:
-      fail-fast: false
+      fail-fast: false                      # one app failing does not cancel the others
       matrix:
-        app: ${{ fromJSON(needs.changes.outputs.apps) }}
+        app: ${{ fromJSON(needs.changes.outputs.apps) }}  # one job per changed app, e.g. ["orders-api"]
     name: test (${{ matrix.app }})
-    uses: ./.github/workflows/_test.yaml
+    uses: ./.github/workflows/_test.yaml    # reusable workflow: same test steps for every app
     with:
       app: ${{ matrix.app }}
 
+  # Job 3: install the real chart on a throwaway kind cluster and smoke-test (runs in parallel with test).
   e2e:
     name: e2e (kind)
     needs: changes
@@ -95,8 +98,9 @@ jobs:
           install_only: true
       - run: gitops-config/scripts/e2e.sh   # builds the app images, installs them with the devops chart
 
+  # Job 4: build the image once, scan it (Trivy), and on main push + sign it.
   build:
-    needs: [changes, test, e2e]
+    needs: [changes, test, e2e]             # only build if tests and e2e passed
     if: needs.changes.outputs.apps != '[]'
     strategy:
       fail-fast: false
@@ -105,17 +109,18 @@ jobs:
     name: build (${{ matrix.app }})
     permissions:
       contents: read
-      packages: write
-      id-token: write
+      packages: write                       # push images to ghcr.io
+      id-token: write                       # keyless cosign signing (GitHub OIDC)
     uses: ./.github/workflows/_build.yaml
     with:
       app: ${{ matrix.app }}
-      push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+      push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}  # PRs build + scan only; main also pushes
 
+  # Job 5: "deploy" = commit the new tag+digest into gitops-config/environments/dev. ArgoCD does the rest.
   deploy-dev:
     name: deploy dev (+ qa PR on release)
     needs: build
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'  # never on PRs
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -125,7 +130,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
-          pattern: image-*
+          pattern: image-*                  # one small JSON per built app: app, tag, digest, version
           path: .out/images
           merge-multiple: true
 
@@ -148,6 +153,7 @@ jobs:
           done
           exit 1
 
+      # Only if a NEW version was built (version.txt holds a version not yet in the registry): stage the qa change...
       - name: prepare qa promotion for new releases
         id: qa
         run: |
@@ -161,6 +167,7 @@ jobs:
           done
           echo "apps=${apps# }" >> "$GITHUB_OUTPUT"
 
+      # ...and open a PR. A human merges it = deploy qa.
       - name: open qa promotion PR
         if: steps.qa.outputs.apps != ''
         uses: peter-evans/create-pull-request@v8
@@ -178,10 +185,11 @@ jobs:
 
             Next step after qa: **Actions -> Promote to production**.
 
+  # Job 6: summary table on the run page (+ Slack if configured).
   report:
     name: pipeline report
     needs: [changes, test, e2e, build, deploy-dev]
-    if: always()
+    if: always()                            # runs even when something failed, so you always get a report
     runs-on: ubuntu-latest
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

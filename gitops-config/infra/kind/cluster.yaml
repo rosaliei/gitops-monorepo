@@ -2,5 +2,5 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
-  - role: control-plane
-    image: kindest/node:v1.34.0
+  - role: control-plane                     # one node that is both control plane and worker (enough for a laptop)
+    image: kindest/node:v1.34.0             # Kubernetes version (1.30+ needed for ValidatingAdmissionPolicy)

@@ -4,7 +4,7 @@
 name: _test
 
 on:
-  workflow_call:
+  workflow_call:                            # "callable" workflow: apps-ci.yaml calls it with an app name
     inputs:
       app:
         required: true
@@ -30,7 +30,7 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-          cache: pip
+          cache: pip                        # reuse downloaded packages between runs (faster)
           cache-dependency-path: gitops-apps/${{ inputs.app }}/requirements*.txt
       - if: hashFiles(format('gitops-apps/{0}/requirements.txt', inputs.app)) != ''
         name: lint + test (python)
@@ -51,6 +51,7 @@ jobs:
           npm run lint
           npm test
 
+      # One line per app in the run summary.
       - name: summary
         if: always()
         run: echo "| ${{ inputs.app }} | unit tests | ${{ job.status }} |" >> "$GITHUB_STEP_SUMMARY"

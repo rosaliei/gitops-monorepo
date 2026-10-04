@@ -1,6 +1,6 @@
 # Default gitleaks rules + an allowlist for the clearly-fake demo values.
 [extend]
-useDefault = true
+useDefault = true                           # all built-in rules (AWS keys, GitHub tokens, private keys, ...)
 
 [allowlist]
 description = "Local demo values that are not real secrets"

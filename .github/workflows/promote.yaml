@@ -9,11 +9,11 @@
 name: Promote to production
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:                        # manual only: a button in the Actions tab
     inputs:
       app:
         description: Service
-        type: choice
+        type: choice                        # dropdown, so nobody can type a wrong app name
         options: [orders-api, inventory-svc, web-frontend]
       version:
         description: "Version (empty = what qa runs now; older version = rollback)"
@@ -28,14 +28,15 @@ defaults:
     shell: bash
 
 concurrency:
-  group: promote-${{ inputs.app }}
+  group: promote-${{ inputs.app }}          # one promotion per app at a time
 
 jobs:
+  # Job 1: work out WHAT would change (promote / rollback / no-op). No approval needed to look.
   plan:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read
+      packages: read                        # look up images in ghcr.io
     outputs:
       tag: ${{ steps.plan.outputs.tag }}
       digest: ${{ steps.plan.outputs.digest }}
@@ -81,18 +82,20 @@ jobs:
             echo "| source | $source |"; echo "| image | \`$image:$tag\` |"; echo "| digest | \`$digest\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # Job 2: the change itself. Pauses for approval, then edits the prod file and opens a PR.
   production:
     needs: plan
-    if: needs.plan.outputs.kind != 'no-op'
+    if: needs.plan.outputs.kind != 'no-op'  # nothing to do if prod already runs it
     runs-on: ubuntu-latest
     # Required reviewers on this environment pause the run here until someone approves.
     environment: production
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write                       # push the promotion branch
+      pull-requests: write                  # open the PR
     steps:
       - uses: actions/checkout@v7
       - run: gitops-config/scripts/set-image.sh prod "${{ inputs.app }}" "${{ needs.plan.outputs.tag }}" "${{ needs.plan.outputs.digest }}"
+      # A PR, not a direct push: prod changes are always reviewed and recorded.
       - uses: peter-evans/create-pull-request@v8
         id: pr
         with:

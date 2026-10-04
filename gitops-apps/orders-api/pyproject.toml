@@ -1,3 +1,4 @@
+# Tool settings for pytest (tests) and ruff (lint). Dependencies are in requirements*.txt.
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

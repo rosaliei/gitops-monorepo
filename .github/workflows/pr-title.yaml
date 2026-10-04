@@ -5,7 +5,7 @@ name: PR title
 
 on:
   pull_request:
-    types: [opened, edited, synchronize, reopened]
+    types: [opened, edited, synchronize, reopened]  # re-check when the title is edited
 
 permissions:
   pull-requests: read
@@ -18,7 +18,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          types: |
+          types: |                          # allowed prefixes; only feat/fix (and !) change the version
             feat
             fix
             perf
