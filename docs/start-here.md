@@ -8,22 +8,23 @@ understand it. Everything else is an extra you can learn later.
 ## The picture
 
 ```
-   gitops-apps/  (app team)                                gitops-config/  (devops team)
- ┌───────────────────────────┐                        ┌─────────────────────────────────┐
- │ you: git push / merge a PR│                        │ environments/dev/<app>.yaml     │◄── ArgoCD reads ONLY this
- │ apps-ci.yaml:             │   commits the new      │ environments/qa/   (PR)         │    folder and copies it
- │   test -> build image ────┼─── image tag ─────────►│ environments/prod/ (approval)   │    into the cluster
- └───────────────────────────┘                        │ charts/app  argocd/  platform/  │        │
-                                                      └─────────────────────────────────┘        ▼
-                                                                         Kubernetes: demo-dev  demo-qa  demo-prod
+   APP REPO: gitops-apps (developers)                  GITOPS REPO: this repo (devops)
+ ┌────────────────────────────────┐                  ┌─────────────────────────────────┐
+ │ you: git push / merge a PR     │                  │ environments/dev/<app>.yaml     │◄── ArgoCD reads ONLY this
+ │ ci.yaml:                       │  commits the new │ environments/qa/   (PR)         │    repo and copies it
+ │   test -> build image ─────────┼── image tag ────►│ environments/prod/ (approval)   │    into the cluster
+ └────────────────────────────────┘  (deploy key)    │ charts/app  argocd/  platform/  │        │
+                                                     └─────────────────────────────────┘        ▼
+                                                                        Kubernetes: demo-dev  demo-qa  demo-prod
 ```
 
-Think of the two folders as **two repos**: developers own `gitops-apps/`, devops owns `gitops-config/`.
-The only bridge between them is a Git commit that changes an image tag ([diagram](diagrams/12-two-repos.svg)).
+Two repos, two teams: developers own the **app repo** ([rosaliei/gitops-apps](https://github.com/rosaliei/gitops-apps)),
+devops owns the **GitOps repo** (this one). The only bridge between them is a Git commit that changes an image tag
+([diagram](diagrams/12-two-repos.svg)).
 
 ## The 3 rules (say these in an interview)
 
-1. **Deploying = changing a file in Git.** `gitops-config/environments/<env>/<app>.yaml` says which image runs where.
+1. **Deploying = changing a file in Git.** `environments/<env>/<app>.yaml` says which image runs where.
    Change the file, push it, and ArgoCD makes the cluster match. No `kubectl apply`, no `helm upgrade`.
 2. **CI never touches the cluster.** GitHub Actions only tests, builds the image and edits Git.
    ArgoCD runs *inside* the cluster and pulls. So CI holds no cluster passwords.
@@ -34,27 +35,27 @@ The only bridge between them is a Git commit that changes an image tag ([diagram
 
 | File | What it is | You change it when... |
 |---|---|---|
-| `gitops-config/environments/<env>/<app>.yaml` | **What runs where**: image tag, replicas, env vars | you deploy or change config (**90% of the time**) |
-| `gitops-config/charts/app/` | One Helm chart = the Kubernetes YAML template for every app | you need a new kind of setting |
-| `gitops-config/argocd/apps/30-demo-apps.yaml` | Tells ArgoCD "one app per file in `gitops-config/environments/`" | almost never |
-| `.github/workflows/apps-ci.yaml` | The app pipeline: test → build → **write the new tag into `gitops-config/`** | you change how CI works |
+| `environments/<env>/<app>.yaml` | **What runs where**: image tag, replicas, env vars | you deploy or change config (**90% of the time**) |
+| `charts/app/` | One Helm chart = the Kubernetes YAML template for every app | you need a new kind of setting |
+| `argocd/apps/30-demo-apps.yaml` | Tells ArgoCD "one app per file in `environments/`" | almost never |
+| [`ci.yaml` in the app repo](https://github.com/rosaliei/gitops-apps/blob/main/.github/workflows/ci.yaml) | The app pipeline: test → build → **write the new tag into this repo** | you change how CI works |
 | `.github/workflows/promote.yaml` | Button to promote to prod, with approval | almost never |
-| `gitops-config/scripts/set-image.sh` | Edits the image in an environment file (CI uses it too) | you deploy by hand |
+| `scripts/set-image.sh` | Edits the image in an environment file (CI uses it too) | you deploy by hand |
 
-**Extras, skip for now:** `config-ci.yaml` (checks for the devops folder), `release-please` (version numbers), `security.yaml`, `terraform.yaml`,
-`pipeline-health.yaml`, `lint-workflows.yaml`, `dependabot.yml`, `gitops-config/platform/` (monitoring, secrets,
-policies), `gitops-config/infra/eks`. They make the project production-grade, but you don't need them to understand the flow.
+**Extras, skip for now:** this repo's `ci.yaml` (checks every config change), `release-please` in the app repo (version numbers), `promotion-pr.yaml`, `security.yaml`, `terraform.yaml`,
+`pipeline-health.yaml`, `lint-workflows.yaml`, `dependabot.yml`, `platform/` (monitoring, secrets,
+policies), `infra/eks`. They make the project production-grade, but you don't need them to understand the flow.
 
 ## How config is layered (only 2 layers)
 
 ```
-gitops-config/charts/app/values.yaml            defaults for every app           (replicas: 1, memory: 128Mi, ...)
+charts/app/values.yaml            defaults for every app           (replicas: 1, memory: 128Mi, ...)
         +
-gitops-config/environments/prod/orders-api.yaml only what prod changes            (tag 0.2.0, HPA 2-4, memory 192Mi)
+environments/prod/orders-api.yaml only what prod changes            (tag 0.2.0, HPA 2-4, memory 192Mi)
         =
 what ArgoCD deploys to demo-prod
 ```
-See it yourself: `helm template orders-api gitops-config/charts/app -f gitops-config/environments/prod/orders-api.yaml`
+See it yourself: `helm template orders-api charts/app -f environments/prod/orders-api.yaml`
 
 ---
 
@@ -72,13 +73,13 @@ Before you start: `make up` (once) and keep ArgoCD open: `kubectl -n argocd port
 - **Say:** *"Every environment is just a folder in Git. ArgoCD keeps the cluster equal to it."*
 
 ### Exercise 2: Deploy by changing one line (10 min)
-- **Do:** in `gitops-config/environments/dev/orders-api.yaml` change `replicaCount: 1` to `replicaCount: 2`, then
+- **Do:** in `environments/dev/orders-api.yaml` change `replicaCount: 1` to `replicaCount: 2`, then
   ```bash
   git commit -am "chore(dev): scale orders-api to 2" && git push
   ```
 - **See:** within about 1 minute (or click **Refresh**), ArgoCD shows the new commit and **2 pods** for orders-api in `demo-dev`.
   Prod is not touched.
-- **Say:** *"A deploy is a reviewed commit. The history of every environment is `git log gitops-config/environments/`."*
+- **Say:** *"A deploy is a reviewed commit. The history of every environment is `git log environments/`."*
 - **Undo:** set it back to `1` and push.
 
 ### Exercise 3: Try to cheat, and get blocked (5 min)
@@ -88,21 +89,21 @@ Before you start: `make up` (once) and keep ArgoCD open: `kubectl -n argocd port
   for example edits made in Rancher, so I block them at the Kubernetes API."*
 
 ### Exercise 4: Let CI catch a mistake (15 min)
-- **Do:** on a new branch, change `tag:` in `gitops-config/environments/dev/orders-api.yaml` to `"latest"`. Push and open a PR.
+- **Do:** on a new branch, change `tag:` in `environments/dev/orders-api.yaml` to `"latest"`. Push and open a PR.
 - **See:** the **e2e (kind)** check goes **red**: the policy rejects `:latest`. The PR can't do damage.
 - **Say:** *"Every PR is tested on a real throwaway Kubernetes cluster, including the security policies."*
 - **Undo:** close the PR, delete the branch.
 
 ### Exercise 5: Ship a code change to dev (15 min)
-- **Do:** in `gitops-apps/orders-api/app/main.py`, add `"team": "platform",` to the `/api/info` response. Open a PR titled
-  `feat(orders-api): show team`, wait for green checks, merge.
-- **See:** Actions builds the image → the bot commits `chore(dev): deploy orders-api:sha-…` → ArgoCD updates dev →
+- **Do:** in the **app repo** ([gitops-apps](https://github.com/rosaliei/gitops-apps)), edit `orders-api/app/main.py`: add
+  `"team": "platform",` to the `/api/info` response. Open a PR titled `feat(orders-api): show team`, wait for green checks, merge.
+- **See:** the app repo's Actions build the image → the bot commits `chore(dev): deploy orders-api:sha-…` **into this repo** → ArgoCD updates dev →
   `curl localhost:8081/api/orders/info` (with `make ui-shop ENV=dev`) shows `"team"`.
-- **Say:** *"Merge to main = dev in a few minutes, fully automatic. Only the app that changed is rebuilt."*
+- **Say:** *"Merge in the app repo = dev in a few minutes, fully automatic. The app pipeline's only power is a commit to the GitOps repo."*
 
 ### Exercise 6: Promote to qa and prod (15 min)
-- **Do:** merge the **release PR** ("chore: release main") that release-please opened for your `feat:`.
-  CI then opens a **qa PR**. Merge it. Then **Actions → Promote to production → orders-api → Run**,
+- **Do:** in the app repo, merge the **release PR** ("chore: release main") that release-please opened for your `feat:`.
+  Its CI then pushes a `promote/qa-*` branch here, which becomes a **qa PR** in this repo. Merge it. Then **Actions → Promote to production → orders-api → Run**,
   approve, and merge the PR it opens.
 - **See:** the qa and prod PRs contain the **same digest** as dev. ArgoCD updates qa, then prod.
 - **Say:** *"Build once, promote the same digest. Prod needs a human approval and a PR."*

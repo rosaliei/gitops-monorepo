@@ -1,0 +1,39 @@
+# Opens the qa promotion PR.
+#
+# When the app repo (github.com/rosaliei/gitops-apps) releases a new version, its pipeline pushes a
+# branch "promote/qa-..." to THIS repo (with a deploy key that can push, but cannot open PRs or
+# merge). This workflow turns that branch into a pull request. A human merges it = deploy qa.
+name: Promotion PR
+
+on:
+  push:
+    branches: ["promote/qa-**"]             # only qa: prod promotions come from promote.yaml (with approval)
+
+permissions:
+  contents: read
+  pull-requests: write                      # open the PR
+
+jobs:
+  open-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: open PR (once per branch)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          if [ -n "$(gh pr list --head "$BRANCH" --state open --json number -q '.[].number')" ]; then
+            echo "PR for $BRANCH already open"; exit 0
+          fi
+          title=$(git log -1 --format=%s)   # e.g. chore(qa): promote orders-api:0.3.0
+          gh pr create --base main --head "$BRANCH" --title "$title" --label promotion --body "$(cat <<EOF
+          New release built and running in **dev**, pushed here by the app repo pipeline.
+          Merging this PR deploys the **same image digest** to **qa** (ArgoCD syncs within a minute).
+
+          - [ ] dev looks good (GitOps Delivery dashboard / smoke test)
+          - [ ] release notes checked (GitHub Releases of rosaliei/gitops-apps)
+
+          Next step after qa: **Actions -> Promote to production**.
+          EOF
+          )"

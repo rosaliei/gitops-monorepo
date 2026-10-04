@@ -1,0 +1,70 @@
+# GitOps CI - owned by the devops team, runs on every change to this repo (except docs).
+#
+#   validate  ->  helm lint + render every environment + kubeconform + promtool (alert rules)
+#   e2e       ->  throwaway kind cluster: build the apps from the app repo, install them with this chart
+#                 and the dev values, smoke test, prove the admission policies block :latest and manual changes
+#
+# A bad chart, values file, policy or alert rule fails the PR here, before ArgoCD ever sees it.
+# Commits pushed by the app repo (new image tags in environments/dev) are checked here too.
+name: GitOps CI
+
+on:
+  pull_request:                             # 1. on every PR
+    paths-ignore: ["docs/**", "**.md"]
+  push:                                     # 2. again after merge (ArgoCD is already applying it)
+    branches: [main]
+    paths-ignore: ["docs/**", "**.md"]
+  workflow_dispatch:
+
+concurrency:                                # one run per PR / commit
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:                                # read-only: this pipeline never writes anything
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Job 1 (fast, ~1 min): render and check every file, no cluster needed.
+  validate:
+    name: validate manifests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.17.0
+      - name: install kubeconform
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar xz -C "$HOME/bin" kubeconform
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+      # the same script you run locally: make validate
+      - run: scripts/validate.sh
+      - name: upload rendered manifests (review what will be deployed)
+        uses: actions/upload-artifact@v7
+        with:
+          name: rendered-manifests
+          path: .out/rendered # download from the run page to see the exact YAML ArgoCD will apply
+          retention-days: 7
+
+  # Job 2 (~5 min): real Kubernetes in Docker (kind), throwaway.
+  e2e:
+    name: e2e (kind)
+    needs: validate                         # only spin up a cluster if the cheap checks passed
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.17.0
+      - uses: helm/kind-action@v1
+        with:
+          version: v0.31.0
+          install_only: true
+      - run: scripts/e2e.sh

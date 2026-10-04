@@ -1,5 +1,0 @@
-{
-  "gitops-apps/orders-api": "0.2.0",
-  "gitops-apps/inventory-svc": "0.2.0",
-  "gitops-apps/web-frontend": "0.2.0"
-}

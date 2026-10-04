@@ -5,5 +5,5 @@ useDefault = true                           # all built-in rules (AWS keys, GitH
 [allowlist]
 description = "Local demo values that are not real secrets"
 paths = [
-  '''gitops-config/platform/manifests/secrets/cluster-secret-store\.yaml''',
+  '''platform/manifests/secrets/cluster-secret-store\.yaml''',
 ]

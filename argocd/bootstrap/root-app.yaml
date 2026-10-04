@@ -1,0 +1,22 @@
+# The only manifest you apply by hand. Everything else is created by ArgoCD from Git
+# ("app of apps"): kubectl apply -f argocd/bootstrap/root-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application                           # an ArgoCD "app": one Git folder -> one place in the cluster
+metadata:
+  name: root                                # the parent of every other app
+  namespace: argocd                         # ArgoCD only looks for Applications in its own namespace
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io  # deleting this app also deletes what it created
+spec:
+  project: default                          # built-in project (root needs to create AppProjects, so it uses the default one)
+  source:                                   # WHERE in Git
+    repoURL: https://github.com/rosaliei/gitops-monorepo.git
+    targetRevision: main                    # follow the main branch
+    path: argocd/apps         # every YAML in this folder becomes an app (app of apps)
+  destination:                              # WHERE in the cluster
+    server: https://kubernetes.default.svc  # "this cluster" (the one ArgoCD runs in)
+    namespace: argocd
+  syncPolicy:
+    automated:                              # sync on its own when Git changes (no "Sync" button needed)
+      prune: true                           # delete from the cluster what was deleted from Git
+      selfHeal: true                        # put back anything changed by hand in the cluster

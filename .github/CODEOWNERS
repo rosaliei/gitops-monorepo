@@ -1,10 +1,7 @@
-# Two "repos" in one: each folder has an owner who must review changes to it.
-# In a real company these would be two repositories with two teams.
+# GitOps repo: owned by the devops / platform team. Every change to what runs where needs their review.
+# Application code lives in its own repo (github.com/rosaliei/gitops-apps) with its own owners.
+*                                 @rosaliei
 
-# App team: application code, Dockerfiles, tests, versions
-/gitops-apps/                     @rosaliei
-
-# DevOps team: Helm chart, environments, ArgoCD, platform add-ons, infrastructure, scripts
-/gitops-config/                   @rosaliei
-/.github/workflows/config-ci.yaml @rosaliei
+# Production: promotion workflow and prod values (in a real company: a smaller "release managers" team)
 /.github/workflows/promote.yaml   @rosaliei
+/environments/prod/               @rosaliei

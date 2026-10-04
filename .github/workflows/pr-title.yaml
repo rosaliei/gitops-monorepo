@@ -1,6 +1,5 @@
 # PR titles must follow Conventional Commits (feat:, fix:, chore: ...).
-# With squash-merge the PR title becomes the commit message, and release-please turns it
-# into the next version number + changelog entry.
+# With squash-merge the PR title becomes the commit message: a readable deploy history (git log environments/).
 name: PR title
 
 on:

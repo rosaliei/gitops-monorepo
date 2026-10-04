@@ -1,0 +1,20 @@
+# qa: when the app repo releases a new version, a PR is opened here (merge = deploy).
+# Chart defaults: charts/app/values.yaml
+# Passed to the app as APP_ENV.
+environment: qa
+
+# WHICH image runs here. Changing tag/digest and pushing = deploying.
+# (set-image.sh rewrites the tag/digest lines, so keep comments off those lines.)
+image:
+  repository: ghcr.io/rosaliei/inventory-svc
+  # version: x.y.z = a release, sha-xxxxxxx = a CI build of main (dev only)
+  tag: "0.2.0"
+  # exact image bytes; qa/prod use the SAME digest that was tested in dev (build once, promote)
+  digest: "sha256:9552d9f6c8d8c23b17267d877e40a3ccb9aee621c7efcd53ab8fb9670adcb7d9"
+
+# number of pods (this environment has no autoscaling)
+replicaCount: 1
+
+# create a ServiceMonitor so Prometheus scrapes /metrics
+metrics:
+  enabled: true

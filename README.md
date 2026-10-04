@@ -1,9 +1,9 @@
-# GitOps Monorepo: `git push` → dev → qa → prod
+# GitOps: `git push` → dev → qa → prod
 
-[![Apps CI/CD](https://github.com/rosaliei/gitops-monorepo/actions/workflows/apps-ci.yaml/badge.svg)](https://github.com/rosaliei/gitops-monorepo/actions/workflows/apps-ci.yaml)
-[![Config CI](https://github.com/rosaliei/gitops-monorepo/actions/workflows/config-ci.yaml/badge.svg)](https://github.com/rosaliei/gitops-monorepo/actions/workflows/config-ci.yaml)
+[![GitOps CI](https://github.com/rosaliei/gitops-monorepo/actions/workflows/ci.yaml/badge.svg)](https://github.com/rosaliei/gitops-monorepo/actions/workflows/ci.yaml)
+[![App CI/CD](https://github.com/rosaliei/gitops-apps/actions/workflows/ci.yaml/badge.svg)](https://github.com/rosaliei/gitops-apps/actions/workflows/ci.yaml)
 [![Security](https://github.com/rosaliei/gitops-monorepo/actions/workflows/security.yaml/badge.svg)](https://github.com/rosaliei/gitops-monorepo/actions/workflows/security.yaml)
-[![Release](https://github.com/rosaliei/gitops-monorepo/actions/workflows/release-please.yaml/badge.svg)](https://github.com/rosaliei/gitops-monorepo/actions/workflows/release-please.yaml)
+[![Release](https://github.com/rosaliei/gitops-apps/actions/workflows/release-please.yaml/badge.svg)](https://github.com/rosaliei/gitops-apps/actions/workflows/release-please.yaml)
 [![Terraform](https://github.com/rosaliei/gitops-monorepo/actions/workflows/terraform.yaml/badge.svg)](https://github.com/rosaliei/gitops-monorepo/actions/workflows/terraform.yaml)
 
 A working CI/CD + GitOps platform. Three services ship to three environments without anyone
@@ -13,22 +13,21 @@ command, and on AWS EKS with Terraform.
 
 > **New here? → [Start here](docs/start-here.md)**: the whole project in 1 picture, 3 rules, 6 files, and 7 hands-on exercises.
 
-## Two repos in one
+## Two repos, two teams
 
-Real companies keep **application code** and **deployment config** in separate repos owned by separate teams.
-This repo shows both sides in one place, as two top-level folders with their own pipelines and owners
-([CODEOWNERS](.github/CODEOWNERS)):
+Like in most companies, **application code** and **deployment config** live in separate repos owned by separate teams:
 
-| | `gitops-apps/`: the **app repo** | `gitops-config/`: the **devops repo** |
+| | [**gitops-apps**](https://github.com/rosaliei/gitops-apps): the **app repo** | **gitops-monorepo** (this repo): the **GitOps repo** |
 |---|---|---|
-| **Owned by** | developers | devops / platform team |
+| **Owned by** | developers | devops / platform team ([CODEOWNERS](.github/CODEOWNERS)) |
 | **Contains** | `orders-api` (Python), `inventory-svc` (Node.js), `web-frontend` (nginx): code, tests, Dockerfiles, versions | the shared **Helm chart**, `environments/dev\|qa\|prod`, ArgoCD apps, platform add-ons (monitoring, policies, secrets), Terraform, scripts |
-| **Pipeline** | [`apps-ci.yaml`](.github/workflows/apps-ci.yaml): test → e2e → build + sign image → **commit the new tag into `gitops-config/environments/dev`** | [`config-ci.yaml`](.github/workflows/config-ci.yaml): helm lint, schema + alert-rule checks, e2e · [`promote.yaml`](.github/workflows/promote.yaml): prod with approval |
-| **ArgoCD reads it?** | **no**: the cluster never looks at app code | **yes**: the only thing ArgoCD watches |
+| **Pipeline** | [`ci.yaml`](https://github.com/rosaliei/gitops-apps/blob/main/.github/workflows/ci.yaml): test → e2e → build + sign image → **commit the new tag into this repo's `environments/dev`** | [`ci.yaml`](.github/workflows/ci.yaml): helm lint, schema + alert-rule checks, e2e · [`promote.yaml`](.github/workflows/promote.yaml): prod with approval |
+| **ArgoCD reads it?** | **no**: the cluster never looks at app code | **yes**: the only repo ArgoCD watches |
 
-The only bridge between the two is a **Git commit**: the app pipeline writes an image tag into `gitops-config/`, and ArgoCD does the rest.
+The only bridge between the two is a **Git commit**: the app pipeline writes an image tag into this repo (with a
+write-only **deploy key**), and ArgoCD does the rest.
 
-[![Two repos in one](docs/diagrams/12-two-repos.svg)](docs/diagrams/12-two-repos.svg)
+[![Two repos](docs/diagrams/12-two-repos.svg)](docs/diagrams/12-two-repos.svg)
 
 ![Overview](docs/diagrams/1-overview.svg)
 
@@ -39,7 +38,7 @@ The only bridge between the two is a **Git commit**: the app pipeline writes an 
 | | |
 |---|---|
 | **GitOps** | ArgoCD app-of-apps + ApplicationSet · one environment folder per env · auto-sync + self-heal · CI has no cluster credentials |
-| **CI/CD** | Reusable GitHub Actions workflows · monorepo path filters · e2e test on a real Kubernetes cluster for every PR |
+| **CI/CD** | App repo + GitOps repo, bridged by a deploy-key commit · reusable workflows · path filters (only changed apps build) · e2e on a real Kubernetes cluster for every PR, in both repos |
 | **Helm** | One simple chart for every service · each environment overrides only what differs |
 | **Versioning & promotion** | Semver from Conventional Commits · **build once, promote the same digest** · prod approval gate · one-click rollback |
 | **DevSecOps** | Trivy gate · Gitleaks · cosign signing · SBOM + provenance · admission policies that block `:latest`, root and **manual changes** |
@@ -86,28 +85,23 @@ Each diagram uses the real files from this repo. Click to open full size.
 | [![Architecture](docs/diagrams/4-architecture.svg)](docs/diagrams/4-architecture.svg) **Architecture**: GitHub, every ArgoCD component, platform namespaces, the 3 environments | [![Config mapping](docs/diagrams/5-config-mapping.svg)](docs/diagrams/5-config-mapping.svg) **Config mapping**: line by line, `root-app` → ApplicationSet → env values → Helm templates → cluster |
 | [![CI/CD](docs/diagrams/6-cicd-pipeline.svg)](docs/diagrams/6-cicd-pipeline.svg) **CI/CD pipeline**: triggers, the real job graph, reusable workflows | [![Promotion](docs/diagrams/7-versioning-promotion.svg)](docs/diagrams/7-versioning-promotion.svg) **Versioning & promotion**: one digest moving dev → qa → prod, approval, rollback |
 | [![Security](docs/diagrams/8-security.svg)](docs/diagrams/8-security.svg) **Security**: a control at every stage, with the config that enforces it | [![Observability](docs/diagrams/9-observability.svg)](docs/diagrams/9-observability.svg) **Observability**: SLO alerts, dashboards, ArgoCD notifications, DORA |
-| [![Prometheus](docs/diagrams/11-prometheus.svg)](docs/diagrams/11-prometheus.svg) **Prometheus**: how a metric gets from the app to an alert: labels, ServiceMonitor, operator, rules, Alertmanager, plus **p50 / p95 / p99** explained | [![Two repos](docs/diagrams/12-two-repos.svg)](docs/diagrams/12-two-repos.svg) **Two repos in one**: who owns `gitops-apps/` vs `gitops-config/`, which pipeline runs for each, and the one commit that bridges them |
+| [![Prometheus](docs/diagrams/11-prometheus.svg)](docs/diagrams/11-prometheus.svg) **Prometheus**: how a metric gets from the app to an alert: labels, ServiceMonitor, operator, rules, Alertmanager, plus **p50 / p95 / p99** explained | [![Two repos](docs/diagrams/12-two-repos.svg)](docs/diagrams/12-two-repos.svg) **Two repos**: who owns the app repo vs the GitOps repo, which pipeline runs in each, and the one commit that bridges them |
 
 Drawn in Excalidraw. Open or edit the sources from [`docs/diagrams/src`](docs/diagrams/src) at [excalidraw.com](https://excalidraw.com).
 
 ## Repository
 
 ```
-gitops-apps/                 APP REPO (developers)
-  orders-api/                Python / FastAPI
-  inventory-svc/             Node.js
-  web-frontend/              nginx status page
-  release-please-config.json versions per app
-gitops-config/               DEVOPS REPO (platform team) - the only thing ArgoCD reads
-  charts/app/                one Helm chart for every service
-  environments/              dev/ qa/ prod/ - one values file per service; changing it = deploying
-  argocd/                    root app-of-apps, projects, platform add-ons, ApplicationSet
-  platform/                  admission policies, secret store, alerts, dashboards
-  infra/                     kind cluster · Terraform for EKS
-  scripts/                   validate · e2e · bootstrap · set-image · promote (used by hand AND by CI)
-.github/                     apps-ci · config-ci · promote · release · security · ... · CODEOWNERS
-docs/                        start here · manual + automation steps · runbooks · interview guide
+charts/app/          one Helm chart for every service
+environments/        dev/ qa/ prod/ - one values file per service; changing it = deploying
+argocd/              root app-of-apps, projects, platform add-ons, ApplicationSet
+platform/            admission policies, secret store, alerts, dashboards
+infra/               kind cluster · Terraform for EKS
+scripts/             validate · e2e · bootstrap · set-image · promote (used by hand AND by CI)
+.github/             ci · promote · promotion-pr · security · terraform · ... · CODEOWNERS
+docs/                start here · manual + automation steps · runbooks · interview guide
 ```
+The application code (orders-api, inventory-svc, web-frontend) is in **[rosaliei/gitops-apps](https://github.com/rosaliei/gitops-apps)**.
 
 ## More
 

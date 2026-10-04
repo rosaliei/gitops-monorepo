@@ -1,0 +1,32 @@
+# Our own cluster config: admission policies, secret store, alerts, dashboards.
+# Waits for the CRDs above (sync wave 1 + retries).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"       # wave 1: after the add-ons (needs their CRDs)
+spec:
+  project: platform                         # see 00-projects.yaml
+  source:
+    repoURL: https://github.com/rosaliei/gitops-monorepo.git
+    targetRevision: main
+    path: platform/manifests  # plain YAML files, no Helm
+    directory:
+      recurse: true                         # include sub-folders (monitoring/, policies/, secrets/)
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring                   # default namespace for files that do not set one
+  syncPolicy:
+    automated:                              # sync on its own when Git changes (no "Sync" button needed)
+      prune: true                           # delete from the cluster what was deleted from Git
+      selfHeal: true                        # put back anything changed by hand in the cluster
+    syncOptions:
+      - SkipDryRunOnMissingResource=true    # do not fail if a CRD is not installed yet
+    retry:                                  # CRDs may arrive a bit later: retry with growing waits (10s, 20s, 40s... max 3m)
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

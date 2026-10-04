@@ -1,0 +1,30 @@
+# qa: when the app repo releases a new version, a PR is opened here (merge = deploy).
+# Chart defaults: charts/app/values.yaml
+# Passed to the app as APP_ENV.
+environment: qa
+
+# WHICH image runs here. Changing tag/digest and pushing = deploying.
+# (set-image.sh rewrites the tag/digest lines, so keep comments off those lines.)
+image:
+  repository: ghcr.io/rosaliei/web-frontend
+  # version: x.y.z = a release, sha-xxxxxxx = a CI build of main (dev only)
+  tag: "0.2.0"
+  # exact image bytes; qa/prod use the SAME digest that was tested in dev (build once, promote)
+  digest: "sha256:692adb56eddd9f7eadd96c47aef41bf9298db010cee5ce3de4025cd8ea094cdb"
+
+# number of pods (this environment has no autoscaling)
+replicaCount: 1
+
+# nginx has no /readyz, so readiness uses /healthz
+probes:
+  readiness: /healthz
+
+# plain config -> environment variables (secrets never go here)
+env:
+  ORDERS_API_HOST: orders-api.demo-qa.svc.cluster.local
+  INVENTORY_HOST: inventory-svc.demo-qa.svc.cluster.local
+
+# nginx writes its generated config here (root filesystem is read-only)
+writableDirs:
+  - /tmp
+  - /etc/nginx/conf.d

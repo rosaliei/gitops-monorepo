@@ -19,6 +19,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0     # full history + tags
-      - run: python3 gitops-config/scripts/pipeline_health.py >> "$GITHUB_STEP_SUMMARY"
+      - run: python3 scripts/pipeline_health.py >> "$GITHUB_STEP_SUMMARY"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

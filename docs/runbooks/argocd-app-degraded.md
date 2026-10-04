@@ -14,8 +14,8 @@ Or open the app in the ArgoCD UI (`make ui-argocd`). The red resource tells you 
 **Common causes**
 | Symptom | Cause | Fix |
 |---|---|---|
-| `ImagePullBackOff` | tag/digest not in the registry, or the GHCR package is private | check the tag in `gitops-config/environments/<env>/<app>.yaml`, make the package public |
+| `ImagePullBackOff` | tag/digest not in the registry, or the GHCR package is private | check the tag in `environments/<env>/<app>.yaml`, make the package public |
 | `CrashLoopBackOff` | the app crashes | [pod-crashlooping.md](pod-crashlooping.md) |
 | Progressing for a long time | readiness probe never passes | check `probes.readiness` |
 
-A deploy made it worse → roll back through Git (revert the commit that changed `gitops-config/environments/<env>/`).
+A deploy made it worse → roll back through Git (revert the commit that changed `environments/<env>/`).

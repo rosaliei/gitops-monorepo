@@ -5,8 +5,10 @@ screenshot of what was typed and what happened at each step. Terminal screenshot
 command output (long output trimmed with `...`). UI screenshots are the real ArgoCD, GitHub and
 Prometheus pages; the **red numbered boxes** mark what was clicked next.
 
-> Recorded before the repo was split into `gitops-apps/` and `gitops-config/`; paths in the screenshots show the old layout
-> (`apps/`, `environments/`), but every step works the same today.
+> Recorded when the app code and the GitOps config still lived in one repo. Today the app code is in its own repo,
+> [rosaliei/gitops-apps](https://github.com/rosaliei/gitops-apps), and paths in the screenshots (`apps/`, `.github/workflows/ci.yaml`)
+> show the old layout. Every step works the same; the only difference is that the app pipeline now commits to this repo
+> from the other one.
 
 Release `0.2.0` was actually shipped during this run: release PR → CI → dev → qa → approval → prod.
 

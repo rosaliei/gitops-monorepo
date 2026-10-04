@@ -55,7 +55,7 @@ jobs:
           APP: ${{ inputs.app }}
           VERSION: ${{ inputs.version }}
         run: |
-          field() { grep -E "^  $1:" "gitops-config/environments/$2/$APP.yaml" | sed -E 's/.*"(.*)"/\1/'; }
+          field() { grep -E "^  $1:" "environments/$2/$APP.yaml" | sed -E 's/.*"(.*)"/\1/'; }
           current=$(field tag prod)
           if [ -z "$VERSION" ]; then
             tag=$(field tag qa); digest=$(field digest qa); source="qa"
@@ -94,7 +94,7 @@ jobs:
       pull-requests: write                  # open the PR
     steps:
       - uses: actions/checkout@v7
-      - run: gitops-config/scripts/set-image.sh prod "${{ inputs.app }}" "${{ needs.plan.outputs.tag }}" "${{ needs.plan.outputs.digest }}"
+      - run: scripts/set-image.sh prod "${{ inputs.app }}" "${{ needs.plan.outputs.tag }}" "${{ needs.plan.outputs.digest }}"
       # A PR, not a direct push: prod changes are always reviewed and recorded.
       - uses: peter-evans/create-pull-request@v8
         id: pr

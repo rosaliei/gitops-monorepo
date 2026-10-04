@@ -1,13 +1,13 @@
-# Terraform checks for gitops-config/infra/eks. Nothing is applied from CI (no cloud credentials here);
+# Terraform checks for infra/eks. Nothing is applied from CI (no cloud credentials here);
 # apply is a deliberate, reviewed step (see docs/eks-and-rancher.md).
 name: Terraform
 
 on:
   pull_request:
-    paths: ["gitops-config/infra/eks/**", ".github/workflows/terraform.yaml"]
+    paths: ["infra/eks/**", ".github/workflows/terraform.yaml"]
   push:
     branches: [main]
-    paths: ["gitops-config/infra/eks/**", ".github/workflows/terraform.yaml"]
+    paths: ["infra/eks/**", ".github/workflows/terraform.yaml"]
 
 permissions:
   contents: read
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: gitops-config/infra/eks
+        working-directory: infra/eks
     steps:
       - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v4
