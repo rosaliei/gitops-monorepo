@@ -8,9 +8,9 @@ environment: dev
 image:
   repository: ghcr.io/rosaliei/orders-api
   # version: x.y.z = a release, sha-xxxxxxx = a CI build of main (dev only)
-  tag: "sha-d50fe2e"
+  tag: "sha-2ea6f52"
   # exact image bytes; qa/prod use the SAME digest that was tested in dev (build once, promote)
-  digest: "sha256:5006b1e15743d0d90113b173679f57cbd83d3b93e514adde4a721df3d3391659"
+  digest: "sha256:6f0060b494e5c6b1ea39ff7f0fdecef154bb65ed29f2628b7d2421de3e6c4055"
 
 # number of pods (this environment has no autoscaling)
 replicaCount: 1

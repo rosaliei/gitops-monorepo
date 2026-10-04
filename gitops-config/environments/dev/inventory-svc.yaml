@@ -8,9 +8,9 @@ environment: dev
 image:
   repository: ghcr.io/rosaliei/inventory-svc
   # version: x.y.z = a release, sha-xxxxxxx = a CI build of main (dev only)
-  tag: "sha-d50fe2e"
+  tag: "sha-2ea6f52"
   # exact image bytes; qa/prod use the SAME digest that was tested in dev (build once, promote)
-  digest: "sha256:ddfe85796b4d4c745d23581401b979d19f4ccc515d46551cc6db6e77a123e344"
+  digest: "sha256:43bd805f1191524655f46633f0387196279911c7688bd2e277e36dbe855df8bb"
 
 # number of pods (this environment has no autoscaling)
 replicaCount: 1
