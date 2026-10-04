@@ -19,7 +19,7 @@ understand it. Everything else is an extra you can learn later.
 ```
 
 Think of the two folders as **two repos**: developers own `gitops-apps/`, devops owns `gitops-config/`.
-The only bridge between them is a Git commit that changes an image tag.
+The only bridge between them is a Git commit that changes an image tag ([diagram](diagrams/12-two-repos.svg)).
 
 ## The 3 rules (say these in an interview)
 

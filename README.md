@@ -28,6 +28,8 @@ This repo shows both sides in one place, as two top-level folders with their own
 
 The only bridge between the two is a **Git commit**: the app pipeline writes an image tag into `gitops-config/`, and ArgoCD does the rest.
 
+[![Two repos in one](docs/diagrams/12-two-repos.svg)](docs/diagrams/12-two-repos.svg)
+
 ![Overview](docs/diagrams/1-overview.svg)
 
 ---
@@ -84,7 +86,7 @@ Each diagram uses the real files from this repo. Click to open full size.
 | [![Architecture](docs/diagrams/4-architecture.svg)](docs/diagrams/4-architecture.svg) **Architecture**: GitHub, every ArgoCD component, platform namespaces, the 3 environments | [![Config mapping](docs/diagrams/5-config-mapping.svg)](docs/diagrams/5-config-mapping.svg) **Config mapping**: line by line, `root-app` → ApplicationSet → env values → Helm templates → cluster |
 | [![CI/CD](docs/diagrams/6-cicd-pipeline.svg)](docs/diagrams/6-cicd-pipeline.svg) **CI/CD pipeline**: triggers, the real job graph, reusable workflows | [![Promotion](docs/diagrams/7-versioning-promotion.svg)](docs/diagrams/7-versioning-promotion.svg) **Versioning & promotion**: one digest moving dev → qa → prod, approval, rollback |
 | [![Security](docs/diagrams/8-security.svg)](docs/diagrams/8-security.svg) **Security**: a control at every stage, with the config that enforces it | [![Observability](docs/diagrams/9-observability.svg)](docs/diagrams/9-observability.svg) **Observability**: SLO alerts, dashboards, ArgoCD notifications, DORA |
-| [![Prometheus](docs/diagrams/11-prometheus.svg)](docs/diagrams/11-prometheus.svg) **Prometheus**: how a metric gets from the app to an alert: labels, ServiceMonitor, operator, rules, Alertmanager, plus **p50 / p95 / p99** explained | |
+| [![Prometheus](docs/diagrams/11-prometheus.svg)](docs/diagrams/11-prometheus.svg) **Prometheus**: how a metric gets from the app to an alert: labels, ServiceMonitor, operator, rules, Alertmanager, plus **p50 / p95 / p99** explained | [![Two repos](docs/diagrams/12-two-repos.svg)](docs/diagrams/12-two-repos.svg) **Two repos in one**: who owns `gitops-apps/` vs `gitops-config/`, which pipeline runs for each, and the one commit that bridges them |
 
 Drawn in Excalidraw. Open or edit the sources from [`docs/diagrams/src`](docs/diagrams/src) at [excalidraw.com](https://excalidraw.com).
 
