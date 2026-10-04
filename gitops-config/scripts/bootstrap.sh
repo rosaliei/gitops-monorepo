@@ -22,7 +22,7 @@ cat <<MSG
 ArgoCD is installing the rest from Git. Watch it:
   kubectl -n argocd get applications -w
 
-ArgoCD UI:  make ui-argocd   -> http://localhost:8080  (user: admin)
+ArgoCD UI:  make ui-argocd   -> http://localhost:8085  (user: admin)
   password: $(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)
 Grafana:    make ui-grafana  -> http://localhost:3000  (admin / admin)
 Shop (dev): make ui-shop ENV=dev -> http://localhost:8081

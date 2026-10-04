@@ -31,7 +31,7 @@ kubectl config use-context "kind-$CLUSTER" >/dev/null
 
 log "build + load images"
 for app in "${APPS[@]}"; do
-  docker build -q -t "local/$app:$TAG" --build-arg APP_VERSION=e2e --build-arg GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo local)" "apps/$app" >/dev/null
+  docker build -q -t "local/$app:$TAG" --build-arg APP_VERSION=e2e --build-arg GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo local)" "../gitops-apps/$app" >/dev/null
   kind load docker-image "local/$app:$TAG" --name "$CLUSTER" >/dev/null
   echo "loaded local/$app:$TAG"
 done

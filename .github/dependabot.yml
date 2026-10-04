@@ -10,17 +10,17 @@ updates:
     groups:
       actions: { patterns: ["*"] }
   - package-ecosystem: pip
-    directory: /apps/orders-api
+    directory: /gitops-apps/orders-api
     schedule: { interval: monthly }
     commit-message: { prefix: "fix(deps)" }
     groups:
       python: { patterns: ["*"] }
   - package-ecosystem: npm
-    directory: /apps/inventory-svc
+    directory: /gitops-apps/inventory-svc
     schedule: { interval: monthly }
     commit-message: { prefix: "fix(deps)" }
   - package-ecosystem: docker
-    directories: [/apps/orders-api, /apps/inventory-svc, /apps/web-frontend]
+    directories: [/gitops-apps/orders-api, /gitops-apps/inventory-svc, /gitops-apps/web-frontend]
     schedule: { interval: monthly }
     commit-message: { prefix: "fix(deps)" }
     # Runtime majors (node 24 -> 25, python 3.12 -> 3.14) are planned upgrades, not bot PRs.

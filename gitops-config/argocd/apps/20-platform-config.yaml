@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: https://github.com/rosaliei/gitops-monorepo.git
     targetRevision: main
-    path: platform/manifests
+    path: gitops-config/platform/manifests
     directory:
       recurse: true
   destination:

@@ -1,0 +1,70 @@
+# Config CI - owned by the devops team, runs when gitops-config/ changes.
+#
+#   validate  ->  helm lint + render every environment + kubeconform + promtool (alert rules)
+#   e2e       ->  throwaway kind cluster: install the chart with the dev values, smoke test,
+#                 prove the admission policies block :latest and manual changes
+#
+# A bad chart, values file, policy or alert rule fails the PR here, before ArgoCD ever sees it.
+name: Config CI
+
+on:
+  pull_request:
+    paths:
+      - "gitops-config/**"
+      - ".github/workflows/config-ci.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "gitops-config/**"
+      - ".github/workflows/config-ci.yaml"
+  workflow_dispatch:
+
+concurrency:
+  group: config-ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  validate:
+    name: validate manifests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.17.0
+      - name: install kubeconform
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar xz -C "$HOME/bin" kubeconform
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+      - run: gitops-config/scripts/validate.sh
+      - name: upload rendered manifests (review what will be deployed)
+        uses: actions/upload-artifact@v7
+        with:
+          name: rendered-manifests
+          path: gitops-config/.out/rendered
+          retention-days: 7
+
+  e2e:
+    name: e2e (kind)
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.17.0
+      - uses: helm/kind-action@v1
+        with:
+          version: v0.31.0
+          install_only: true
+      - run: gitops-config/scripts/e2e.sh

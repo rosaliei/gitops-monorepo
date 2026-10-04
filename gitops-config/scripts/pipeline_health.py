@@ -6,7 +6,7 @@ deployment log:
   - deployment frequency  = commits that changed environments/<env>/ in the window
   - lead time to prod     = release tag (<app>-v<x.y.z>) -> commit that put x.y.z in prod
   - change failure rate   = prod changes that were rollbacks / all prod changes
-  - CI success rate       = GitHub Actions runs of ci.yaml on main (needs GH_TOKEN + gh CLI)
+  - CI success rate       = GitHub Actions runs of apps-ci.yaml on main (needs GH_TOKEN + gh CLI)
 
 Prints Markdown. Never fails the pipeline: missing data is reported as "n/a".
 Run locally:  python3 scripts/pipeline_health.py
@@ -19,6 +19,8 @@ import subprocess
 from datetime import datetime, timedelta, timezone
 
 DAYS = 30
+ENVS = ["gitops-config/environments", "environments"]   # current path + the path before the apps/config split
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../.."))   # repo root
 
 
 def sh(*cmd):
@@ -30,7 +32,7 @@ def sh(*cmd):
 
 def env_commits(env):
     """[(timestamp, subject, sha)] for commits that changed environments/<env>/."""
-    out = sh("git", "log", f"--since={DAYS}.days", "--format=%ct|%H|%s", "--", f"environments/{env}")
+    out = sh("git", "log", f"--since={DAYS}.days", "--format=%ct|%H|%s", "--", *[f"{e}/{env}" for e in ENVS])
     rows = []
     for line in filter(None, out.splitlines()):
         ts, sha, subject = line.split("|", 2)
@@ -41,10 +43,10 @@ def env_commits(env):
 def prod_lead_times_hours():
     hours = []
     for ts, _subject, sha in env_commits("prod"):
-        diff = sh("git", "show", "--format=", "--unified=0", sha, "--", "environments/prod")
+        diff = sh("git", "show", "--format=", "--unified=0", sha, "--", *[f"{e}/prod" for e in ENVS])
         current_app = None
         for line in diff.splitlines():
-            m = re.match(r"^\+\+\+ b/environments/prod/(.+)\.yaml$", line)
+            m = re.match(r"^\+\+\+ b/(?:gitops-config/)?environments/prod/(.+)\.yaml$", line)
             if m:
                 current_app = m.group(1)
             m = re.match(r'^\+  tag: "(\d+\.\d+\.\d+)"$', line)
@@ -59,7 +61,7 @@ def ci_stats():
     repo = os.getenv("GITHUB_REPOSITORY") or sh("gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner")
     if not repo:
         return None
-    raw = sh("gh", "api", f"repos/{repo}/actions/workflows/ci.yaml/runs?branch=main&per_page=100")
+    raw = sh("gh", "api", f"repos/{repo}/actions/workflows/apps-ci.yaml/runs?branch=main&per_page=100")
     if not raw:
         return None
     since = datetime.now(timezone.utc) - timedelta(days=DAYS)
@@ -104,7 +106,7 @@ def main():
     else:
         print("| CI success rate on main | n/a |")
 
-    print("\nDeployments are Git commits, so this is computed from `git log environments/<env>`.")
+    print("\nDeployments are Git commits, so this is computed from `git log gitops-config/environments/<env>`.")
 
 
 if __name__ == "__main__":

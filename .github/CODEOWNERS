@@ -1,0 +1,10 @@
+# Two "repos" in one: each folder has an owner who must review changes to it.
+# In a real company these would be two repositories with two teams.
+
+# App team: application code, Dockerfiles, tests, versions
+/gitops-apps/                     @rosaliei
+
+# DevOps team: Helm chart, environments, ArgoCD, platform add-ons, infrastructure, scripts
+/gitops-config/                   @rosaliei
+/.github/workflows/config-ci.yaml @rosaliei
+/.github/workflows/promote.yaml   @rosaliei

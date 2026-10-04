@@ -1,6 +1,7 @@
 # GitOps Monorepo: `git push` → dev → qa → prod
 
-[![CI/CD](https://github.com/rosaliei/gitops-monorepo/actions/workflows/ci.yaml/badge.svg)](https://github.com/rosaliei/gitops-monorepo/actions/workflows/ci.yaml)
+[![Apps CI/CD](https://github.com/rosaliei/gitops-monorepo/actions/workflows/apps-ci.yaml/badge.svg)](https://github.com/rosaliei/gitops-monorepo/actions/workflows/apps-ci.yaml)
+[![Config CI](https://github.com/rosaliei/gitops-monorepo/actions/workflows/config-ci.yaml/badge.svg)](https://github.com/rosaliei/gitops-monorepo/actions/workflows/config-ci.yaml)
 [![Security](https://github.com/rosaliei/gitops-monorepo/actions/workflows/security.yaml/badge.svg)](https://github.com/rosaliei/gitops-monorepo/actions/workflows/security.yaml)
 [![Release](https://github.com/rosaliei/gitops-monorepo/actions/workflows/release-please.yaml/badge.svg)](https://github.com/rosaliei/gitops-monorepo/actions/workflows/release-please.yaml)
 [![Terraform](https://github.com/rosaliei/gitops-monorepo/actions/workflows/terraform.yaml/badge.svg)](https://github.com/rosaliei/gitops-monorepo/actions/workflows/terraform.yaml)
@@ -11,6 +12,21 @@ records what runs where, and **ArgoCD** makes the cluster match Git. It runs on 
 command, and on AWS EKS with Terraform.
 
 > **New here? → [Start here](docs/start-here.md)**: the whole project in 1 picture, 3 rules, 6 files, and 7 hands-on exercises.
+
+## Two repos in one
+
+Real companies keep **application code** and **deployment config** in separate repos owned by separate teams.
+This repo shows both sides in one place, as two top-level folders with their own pipelines and owners
+([CODEOWNERS](.github/CODEOWNERS)):
+
+| | `gitops-apps/`: the **app repo** | `gitops-config/`: the **devops repo** |
+|---|---|---|
+| **Owned by** | developers | devops / platform team |
+| **Contains** | `orders-api` (Python), `inventory-svc` (Node.js), `web-frontend` (nginx): code, tests, Dockerfiles, versions | the shared **Helm chart**, `environments/dev\|qa\|prod`, ArgoCD apps, platform add-ons (monitoring, policies, secrets), Terraform, scripts |
+| **Pipeline** | [`apps-ci.yaml`](.github/workflows/apps-ci.yaml): test → e2e → build + sign image → **commit the new tag into `gitops-config/environments/dev`** | [`config-ci.yaml`](.github/workflows/config-ci.yaml): helm lint, schema + alert-rule checks, e2e · [`promote.yaml`](.github/workflows/promote.yaml): prod with approval |
+| **ArgoCD reads it?** | **no**: the cluster never looks at app code | **yes**: the only thing ArgoCD watches |
+
+The only bridge between the two is a **Git commit**: the app pipeline writes an image tag into `gitops-config/`, and ArgoCD does the rest.
 
 ![Overview](docs/diagrams/1-overview.svg)
 
@@ -75,15 +91,20 @@ Drawn in Excalidraw. Open or edit the sources from [`docs/diagrams/src`](docs/di
 ## Repository
 
 ```
-apps/            orders-api (Python) · inventory-svc (Node.js) · web-frontend (nginx)
-charts/app/      one Helm chart for every service
-environments/    dev/ qa/ prod/ - one values file per service; changing it = deploying
-argocd/          root app-of-apps, projects, platform add-ons, ApplicationSet
-platform/        admission policies, secret store, alerts, dashboards
-infra/           kind cluster · Terraform for EKS
-scripts/         validate · e2e · bootstrap · set-image · promote (used by hand AND by CI)
-.github/         10 workflows · Dependabot
-docs/            manual steps · automation steps · runbooks · interview guide · EKS & Rancher
+gitops-apps/                 APP REPO (developers)
+  orders-api/                Python / FastAPI
+  inventory-svc/             Node.js
+  web-frontend/              nginx status page
+  release-please-config.json versions per app
+gitops-config/               DEVOPS REPO (platform team) - the only thing ArgoCD reads
+  charts/app/                one Helm chart for every service
+  environments/              dev/ qa/ prod/ - one values file per service; changing it = deploying
+  argocd/                    root app-of-apps, projects, platform add-ons, ApplicationSet
+  platform/                  admission policies, secret store, alerts, dashboards
+  infra/                     kind cluster · Terraform for EKS
+  scripts/                   validate · e2e · bootstrap · set-image · promote (used by hand AND by CI)
+.github/                     apps-ci · config-ci · promote · release · security · ... · CODEOWNERS
+docs/                        start here · manual + automation steps · runbooks · interview guide
 ```
 
 ## More

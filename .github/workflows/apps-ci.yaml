@@ -1,18 +1,28 @@
-# CI/CD for the monorepo.
+# Apps CI/CD - owned by the app team, runs when gitops-apps/ changes.
 #
-#   pull request  ->  test  +  validate  +  e2e  +  build & scan      (nothing is published)
+#   pull request  ->  test  +  e2e  +  build & scan                     (nothing is published)
 #   merge to main ->  same checks, then push + sign images,
-#                     commit the new image to environments/dev   (ArgoCD deploys dev)
-#                     if a version was released, open a PR for environments/qa
+#                     commit the new image to gitops-config/environments/dev   (ArgoCD deploys dev)
+#                     if a version was released, open a PR for gitops-config/environments/qa
 #
-# Only the apps that changed are tested and built (monorepo path filters).
-name: CI/CD
+# This pipeline never touches the cluster: it only writes to the registry and to gitops-config/.
+# Only the apps that changed are tested and built (path filters).
+name: Apps CI/CD
 
 on:
   pull_request:
+    paths:
+      - "gitops-apps/**"
+      - ".github/workflows/apps-ci.yaml"
+      - ".github/workflows/_test.yaml"
+      - ".github/workflows/_build.yaml"
   push:
     branches: [main]
-    paths-ignore: ["**.md", "docs/**"]
+    paths:
+      - "gitops-apps/**"
+      - ".github/workflows/apps-ci.yaml"
+      - ".github/workflows/_test.yaml"
+      - ".github/workflows/_build.yaml"
   workflow_dispatch:   # re-run everything by hand (builds all apps)
 
 concurrency:
@@ -41,9 +51,9 @@ jobs:
         id: filter
         with:
           filters: |
-            orders-api: ["apps/orders-api/**"]
-            inventory-svc: ["apps/inventory-svc/**"]
-            web-frontend: ["apps/web-frontend/**"]
+            orders-api: ["gitops-apps/orders-api/**"]
+            inventory-svc: ["gitops-apps/inventory-svc/**"]
+            web-frontend: ["gitops-apps/web-frontend/**"]
       - name: apps to build
         id: apps
         run: |
@@ -68,31 +78,10 @@ jobs:
     with:
       app: ${{ matrix.app }}
 
-  validate:
-    name: validate manifests
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-      - uses: azure/setup-helm@v5
-        with:
-          version: v3.17.0
-      - name: install kubeconform
-        run: |
-          mkdir -p "$HOME/bin"
-          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar xz -C "$HOME/bin" kubeconform
-          echo "$HOME/bin" >> "$GITHUB_PATH"
-      - run: scripts/validate.sh
-      - name: upload rendered manifests (review what will be deployed)
-        uses: actions/upload-artifact@v7
-        with:
-          name: rendered-manifests
-          path: .out/rendered
-          retention-days: 7
-
   e2e:
     name: e2e (kind)
-    needs: validate
+    needs: changes
+    if: needs.changes.outputs.apps != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -104,7 +93,7 @@ jobs:
         with:
           version: v0.31.0
           install_only: true
-      - run: scripts/e2e.sh
+      - run: gitops-config/scripts/e2e.sh   # builds the app images, installs them with the devops chart
 
   build:
     needs: [changes, test, e2e]
@@ -130,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: write        # commit to environments/dev
+      contents: write        # commit to gitops-config/environments/dev
       pull-requests: write   # open the qa promotion PR
     steps:
       - uses: actions/checkout@v7
@@ -147,10 +136,10 @@ jobs:
           msg=""
           for f in .out/images/*.json; do
             app=$(jq -r .app "$f"); tag=$(jq -r .tag "$f"); digest=$(jq -r .digest "$f")
-            scripts/set-image.sh dev "$app" "$tag" "$digest"
+            gitops-config/scripts/set-image.sh dev "$app" "$tag" "$digest"
             msg="$msg $app:$tag"
           done
-          git add environments/dev
+          git add gitops-config/environments/dev
           git commit -m "chore(dev): deploy$msg"
           # Several pipelines may finish at once: rebase and retry instead of failing.
           for i in 1 2 3 4 5; do
@@ -166,7 +155,7 @@ jobs:
           for f in .out/images/*.json; do
             if [ "$(jq -r .new_release "$f")" = true ]; then
               app=$(jq -r .app "$f"); version=$(jq -r .version "$f")
-              scripts/set-image.sh qa "$app" "$version" "$(jq -r .digest "$f")"
+              gitops-config/scripts/set-image.sh qa "$app" "$version" "$(jq -r .digest "$f")"
               apps="$apps $app:$version"
             fi
           done
@@ -191,7 +180,7 @@ jobs:
 
   report:
     name: pipeline report
-    needs: [changes, test, validate, e2e, build, deploy-dev]
+    needs: [changes, test, e2e, build, deploy-dev]
     if: always()
     runs-on: ubuntu-latest
     env:
@@ -205,7 +194,6 @@ jobs:
             echo "|---|---|"
             echo "| apps | \`${{ needs.changes.outputs.apps }}\` |"
             echo "| unit tests | ${{ needs.test.result }} |"
-            echo "| manifests | ${{ needs.validate.result }} |"
             echo "| e2e (kind) | ${{ needs.e2e.result }} |"
             echo "| build / scan / sign | ${{ needs.build.result }} |"
             echo "| deploy dev | ${{ needs.deploy-dev.result }} |"

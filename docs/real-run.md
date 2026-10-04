@@ -5,6 +5,9 @@ screenshot of what was typed and what happened at each step. Terminal screenshot
 command output (long output trimmed with `...`). UI screenshots are the real ArgoCD, GitHub and
 Prometheus pages; the **red numbered boxes** mark what was clicked next.
 
+> Recorded before the repo was split into `gitops-apps/` and `gitops-config/`; paths in the screenshots show the old layout
+> (`apps/`, `environments/`), but every step works the same today.
+
 Release `0.2.0` was actually shipped during this run: release PR → CI → dev → qa → approval → prod.
 
 | # | Step | # | Step |

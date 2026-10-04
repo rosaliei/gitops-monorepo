@@ -12,7 +12,7 @@ in about 2 days. Users are affected right now.
 **Fix**
 - **Caused by a deploy** → roll back (fastest, safest):
   - prod: *Actions → Promote to production* → same app, previous version → approve → merge the PR.
-  - by hand: `scripts/set-image.sh prod <app> <previous-version>` → commit → PR → merge.
+  - by hand: `gitops-config/scripts/set-image.sh prod <app> <previous-version>` → commit → PR → merge.
 - **Not caused by a deploy** (dependency down, bad data) → fix forward, keep the incident channel updated.
 
 **Try it** (dev): `for i in $(seq 50); do curl -s -XPOST localhost:8081/api/orders/orders -H 'content-type: application/json' -d '{"item":"error","quantity":1}'; done`

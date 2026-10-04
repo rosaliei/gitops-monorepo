@@ -18,8 +18,8 @@ They are estimated from the `http_request_duration_seconds` histogram buckets, s
 **Fix**
 | Pattern | Likely cause | Fix (in Git) |
 |---|---|---|
-| p50, p95, p99 all high | overload or a slow dependency | raise `autoscaling.maxReplicas` / `resources` in `environments/<env>/<app>.yaml` |
+| p50, p95, p99 all high | overload or a slow dependency | raise `autoscaling.maxReplicas` / `resources` in `gitops-config/environments/<env>/<app>.yaml` |
 | only p99 high | a slow endpoint, GC pauses, cold caches, a few retries | look at the slow route; profile; increase timeouts carefully |
 | started right after a deploy | the new version | roll back (see [error-budget-burn.md](error-budget-burn.md)) |
 
-The rules are unit-tested: `platform/tests/latency-rules.test.yaml` (run by `scripts/validate.sh`).
+The rules are unit-tested: `gitops-config/platform/tests/latency-rules.test.yaml` (run by `gitops-config/scripts/validate.sh`).

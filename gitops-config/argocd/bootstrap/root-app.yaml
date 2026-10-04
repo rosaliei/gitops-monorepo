@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: https://github.com/rosaliei/gitops-monorepo.git
     targetRevision: main
-    path: argocd/apps
+    path: gitops-config/argocd/apps
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

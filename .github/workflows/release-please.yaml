@@ -22,8 +22,8 @@ jobs:
       - uses: googleapis/release-please-action@v5
         id: release
         with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
+          config-file: gitops-apps/release-please-config.json
+          manifest-file: gitops-apps/.release-please-manifest.json
       - name: summary
         run: |
           echo "## Releases" >> "$GITHUB_STEP_SUMMARY"

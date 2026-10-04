@@ -5,5 +5,5 @@ useDefault = true
 [allowlist]
 description = "Local demo values that are not real secrets"
 paths = [
-  '''platform/manifests/secrets/cluster-secret-store\.yaml''',
+  '''gitops-config/platform/manifests/secrets/cluster-secret-store\.yaml''',
 ]

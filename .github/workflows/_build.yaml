@@ -2,7 +2,7 @@
 #
 # Tags (immutable - a tag is never pushed twice):
 #   sha-<commit>   every build on main              -> deployed to dev
-#   <x.y.z>        only when apps/<app>/version.txt holds a version that is not in the registry
+#   <x.y.z>        only when gitops-apps/<app>/version.txt holds a version that is not in the registry
 #                  yet (release-please just bumped it) -> promoted to qa, then prod
 # The release tag points at the SAME image as the sha tag: build once, promote everywhere.
 name: _build
@@ -47,7 +47,7 @@ jobs:
           {
             echo "image=ghcr.io/$owner/${{ inputs.app }}"
             echo "sha_tag=sha-${GITHUB_SHA::7}"
-            echo "version=$(tr -d '[:space:]' < apps/${{ inputs.app }}/version.txt)"
+            echo "version=$(tr -d '[:space:]' < gitops-apps/${{ inputs.app }}/version.txt)"
           } >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v4
@@ -56,7 +56,7 @@ jobs:
       - name: build (for scanning)
         uses: docker/build-push-action@v7
         with:
-          context: apps/${{ inputs.app }}
+          context: gitops-apps/${{ inputs.app }}
           platforms: linux/amd64
           load: true
           tags: local/${{ inputs.app }}:scan
@@ -103,7 +103,7 @@ jobs:
         id: push
         uses: docker/build-push-action@v7
         with:
-          context: apps/${{ inputs.app }}
+          context: gitops-apps/${{ inputs.app }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.release.outputs.tags }}

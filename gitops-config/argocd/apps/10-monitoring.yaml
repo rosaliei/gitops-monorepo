@@ -16,7 +16,7 @@ spec:
       helm:
         releaseName: monitoring
         valueFiles:
-          - $values/platform/values/kube-prometheus-stack.yaml
+          - $values/gitops-config/platform/values/kube-prometheus-stack.yaml
     - repoURL: https://github.com/rosaliei/gitops-monorepo.git
       targetRevision: main
       ref: values

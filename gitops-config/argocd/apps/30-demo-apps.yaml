@@ -1,5 +1,5 @@
 # One ApplicationSet -> one Application per file in environments/<env>/<app>.yaml
-#   environments/dev/orders-api.yaml  ->  Application "orders-api-dev" in namespace "demo-dev"
+#   gitops-config/environments/dev/orders-api.yaml  ->  Application "orders-api-dev" in namespace "demo-dev"
 # Adding a service or an environment = adding a file. No new ArgoCD YAML.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -16,7 +16,7 @@ spec:
         repoURL: https://github.com/rosaliei/gitops-monorepo.git
         revision: main
         files:
-          - path: "environments/*/*.yaml"
+          - path: "gitops-config/environments/*/*.yaml"
   template:
     metadata:
       name: '{{ trimSuffix ".yaml" .path.filename }}-{{ .path.basename }}'
@@ -33,11 +33,11 @@ spec:
       source:
         repoURL: https://github.com/rosaliei/gitops-monorepo.git
         targetRevision: main
-        path: charts/app
+        path: gitops-config/charts/app
         helm:
           releaseName: '{{ trimSuffix ".yaml" .path.filename }}'
           valueFiles:
-            - '../../{{ .path.path }}/{{ .path.filename }}'
+            - '../../../{{ .path.path }}/{{ .path.filename }}'   # chart is 3 levels deep: gitops-config/charts/app
       destination:
         server: https://kubernetes.default.svc
         namespace: 'demo-{{ .path.basename }}'

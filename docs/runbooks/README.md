@@ -1,6 +1,6 @@
 # Runbooks
 
-Every alert in [`platform/manifests/monitoring/alerts.yaml`](../../platform/manifests/monitoring/alerts.yaml) links here.
+Every alert in [`gitops-config/platform/manifests/monitoring/alerts.yaml`](../../gitops-config/platform/manifests/monitoring/alerts.yaml) links here.
 Each runbook answers three questions: **what does it mean, how do I check, how do I fix it.**
 
 | Alert | Severity | Runbook |
