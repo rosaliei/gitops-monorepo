@@ -16,6 +16,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, Field
 
+TEST = "KST"
 SERVICE = "orders-api"
 VERSION = os.getenv("APP_VERSION", "dev")
 COMMIT = os.getenv("GIT_SHA", "local")
